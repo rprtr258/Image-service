@@ -11,5 +11,5 @@ def index():
     return render_template("index.html")
 
 @app.route("/blur", methods=["GET", "POST"])
-def index():
-    return render_template("index.html")
+def blur():
+    return render_template("blur.html")
