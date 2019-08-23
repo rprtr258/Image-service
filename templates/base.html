@@ -1,8 +1,16 @@
 <html>
     <head>
         <title>{% block title %}{% endblock %}</title>
+        <style>
+            body {
+                background-color: #000000;
+            }
+            p {
+                color: #ffffff;
+            }
+        </style>
     </head>
-    <body style="background-color: #000000;">
+    <body>
         {% block body %}
         {% endblock %}
     </body>
