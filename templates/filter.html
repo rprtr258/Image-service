@@ -7,6 +7,8 @@
 {% block body %}
     <form method="POST">
         <input type="text" name="url" style="width: 600px">
+        {% block parameters %}
+        {% endblock %}
         <input type="submit">
     </form>
     <p>

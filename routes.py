@@ -1,6 +1,6 @@
 from flask import render_template, request, send_from_directory
 
-from filters import apply_convolution
+from filters import apply_convolution, cluster_filter
 from app import app
 
 def convolution_filter(kernel, filter_name):
@@ -63,3 +63,17 @@ def horizontallines():
 @app.route("/verticallines", methods=["GET", "POST"])
 def verticallines():
     return convolution_filter([[-1, 2, -1], [-1, 2, -1], [-1, 2, -1]], "Vertical lines")
+
+@app.route("/cluster", methods=["GET", "POST"])
+def cluster():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = cluster_filter(request.form["url"], int(request.form["n"]))
+                return render_template("cluster.html", message=f"Processed image {request.form['url']}", image_file=image_file)
+            except Exception as e:
+                return render_template("cluster.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("cluster.html", message="Url was not provided")
+    else:
+        return render_template("cluster.html")
