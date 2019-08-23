@@ -1,4 +1,5 @@
-from flask import render_template
+from flask import render_template, request
+import requests
 
 from app import app
 
@@ -12,4 +13,16 @@ def index():
 
 @app.route("/blur", methods=["GET", "POST"])
 def blur():
-    return render_template("blur.html")
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                resp = requests.get(request.form["url"])
+                if resp.status_code != 200:
+                    return render_template("blur.html", message="Incorrect url")
+                return render_template("blur.html", message=f"Processed image {request.form['url']}")
+            except Exception:
+                return render_template("blur.html", message="Incorrect url")
+        else:
+            return render_template("blur.html", message="Url was not provided")
+    else:
+        return render_template("blur.html")
