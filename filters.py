@@ -5,9 +5,9 @@ from PIL import Image
 from convolution import apply_filter
 
 def load_image(url):
-    with open("f.jpg", "wb") as f:
+    with open("img/f.jpg", "wb") as f:
         f.write(requests.get(url).content)
-    im = Image.open("f.jpg")
+    im = Image.open("img/f.jpg")
     return np.array(im)
 
 def apply_convolution(url, kernel):
