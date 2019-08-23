@@ -1,2 +1,6 @@
 # python cached files
 __pycache__/*
+# IDE files
+.vscode/*
+# Static files
+img/*

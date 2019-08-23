@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 
 {% block title %}
-Blur filter
+{{ filter_name }} filter
 {% endblock %}
 
 {% block body %}
     <form method="POST">
-        <input type="text" name="url">
+        <input type="text" name="url" style="width: 600px">
         <input type="submit">
     </form>
     <p>
         {{ message }}
     </p>
+    <img src="{{ image_file }}">
 {% endblock %}
