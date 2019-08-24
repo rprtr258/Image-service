@@ -4,12 +4,42 @@
 {{ filter_name }} filter
 {% endblock %}
 
+{% block styles %}
+<style>
+form {
+    margin-left: .5rem;
+    margin-top: .5rem;
+    background-color: #2e3338;
+    padding: 1rem;
+    padding-top: .75rem;
+    display: inline-block;
+    border: 1px solid rgb(0, 0, 0);
+    border-radius: .3rem;
+}
+.label {
+    color: #fff;
+}
+.text {
+    margin: .75rem;
+}
+.text:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+.button {
+    margin-right: .75rem;
+    float: right;
+}
+</style>
+{% endblock %}
+
 {% block body %}
     <form method="POST">
-        <input type="text" name="url" style="width: 600px">
-        {% block parameters %}
-        {% endblock %}
-        <input type="submit">
+        <div class="label">Image url: 
+            <input class="text" type="text" name="url" style="width: 600px">
+            {% block parameters %}
+            {% endblock %}
+        </div>
+        <input class="button" type="submit">
     </form>
     <p>
         {{ message }}
