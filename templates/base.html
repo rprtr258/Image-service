@@ -5,12 +5,30 @@
             body {
                 background-color: #272b30;
             }
+            .container {
+                padding-top: 3rem;
+            }
+            nav {
+                padding: 8px;
+                padding-left: 16px;
+                padding-bottom: 12px;
+                background-color: #2e3439;
+                background-image: linear-gradient(to bottom, #272b30 0%, #2e3439 100%);
+                position: fixed;
+                left: 0;
+                right: 0;
+            }
         </style>
         {% block styles %}
         {% endblock %}
     </head>
     <body>
-        {% block body %}
-        {% endblock %}
+        <nav>
+            <a href="/"><b>Index</b></a>
+        </nav>
+        <div class="container">
+            {% block body %}
+            {% endblock %}
+        </div>
     </body>
 </html>
