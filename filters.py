@@ -60,14 +60,13 @@ def hilbert_curve(url):
 def hilbert_darken(url):
     image, imid = load_image(url)
     tmp = hilbert_curve_filter(image)
-    tmp = tmp.resize((image.shape[1], image.shape[0]), resample=Image.BILINEAR)
+    tmp = tmp.resize((image.shape[1], image.shape[0]), resample=Image.BICUBIC)
     tmpa = np.array(tmp)
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
-            lum1 = np.sum(image[i][j]) / 3
-            lum2 = np.sum(tmpa[i][j]) / 3
-            if lum1 < lum2:
-                tmpa[i][j] = image[i][j]
+            for k in range(3):
+                if image[i][j][k] < tmpa[i][j][k]:
+                    tmpa[i][j][k] = image[i][j][k]
     filtered_filename = "img/" + imid + ".res.png"
     Image.fromarray(tmpa.astype(np.uint8), "RGB").save(filtered_filename)
     return filtered_filename

@@ -42,7 +42,7 @@ form {
         <input class="button" type="submit">
     </form>
     <p>
-        {{ message }}
+        {{ message|safe }}
     </p>
     <img src="{{ image_file }}">
 {% endblock %}

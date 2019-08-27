@@ -98,7 +98,7 @@ def hilbertdarken():
         if "url" in request.form:
             try:
                 image_file = hilbert_darken(request.form["url"])
-                return render_template("filter.html", message=f"Processed image {request.form['url']}", image_file=image_file)
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
             except Exception as e:
                 return render_template("filter.html", message=f"Error occured:\n{e}")
         else:
