@@ -1,3 +1,5 @@
+from time import asctime
+
 import requests
 import numpy as np
 from PIL import Image
@@ -5,6 +7,9 @@ from sklearn.cluster import KMeans
 
 from convolution import apply_filter
 from hilbert import hilbert_curve_filter
+
+def get_next_filename():
+    return "img/" + str(asctime()) + ".png"
 
 def load_image(url):
     with open("img/f.jpg", "wb") as f:
@@ -15,7 +20,7 @@ def load_image(url):
 def apply_convolution(url, kernel):
     image = load_image(url)
     filtered = apply_filter(image, kernel)
-    filtered_filename = "img/g.png"
+    filtered_filename = get_next_filename()
     filtered.save(filtered_filename)
     return filtered_filename
 
@@ -39,13 +44,13 @@ def cluster_filter(url, N):
                     k = h
             r[i][j] = colors[k]
     filtered = Image.fromarray(r.astype(np.uint8), "RGB")
-    filtered_filename = "img/h.png"
+    filtered_filename = get_next_filename()
     filtered.save(filtered_filename)
     return filtered_filename
 
 def hilbert_curve(url):
     image = load_image(url)
     tmp = hilbert_curve_filter(image)
-    res_filename = "img/fajs.png"
+    res_filename = get_next_filename()
     tmp.save(res_filename)
     return res_filename
