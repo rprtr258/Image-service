@@ -9,23 +9,25 @@ from convolution import apply_filter
 from hilbert import hilbert_curve_filter
 
 def get_next_filename():
-    return "img/" + str(asctime()) + ".png"
+    return str(asctime())
 
 def load_image(url):
-    with open("img/f.jpg", "wb") as f:
+    imid = get_next_filename()
+    image_filename = "img/" + imid + ".orig.png"
+    with open(image_filename, "wb") as f:
         f.write(requests.get(url).content)
-    im = Image.open("img/f.jpg")
-    return np.array(im)
+    im = Image.open(image_filename)
+    return np.array(im), imid
 
 def apply_convolution(url, kernel):
-    image = load_image(url)
+    image, imid = load_image(url)
     filtered = apply_filter(image, kernel)
-    filtered_filename = get_next_filename()
+    filtered_filename = "img/" + imid + ".res.png"
     filtered.save(filtered_filename)
     return filtered_filename
 
 def cluster_filter(url, N):
-    image = load_image(url)
+    image, imid = load_image(url)
     X = []
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
@@ -44,13 +46,13 @@ def cluster_filter(url, N):
                     k = h
             r[i][j] = colors[k]
     filtered = Image.fromarray(r.astype(np.uint8), "RGB")
-    filtered_filename = get_next_filename()
+    filtered_filename = "img/" + imid + ".res.png"
     filtered.save(filtered_filename)
     return filtered_filename
 
 def hilbert_curve(url):
-    image = load_image(url)
+    image, imid = load_image(url)
     tmp = hilbert_curve_filter(image)
-    res_filename = get_next_filename()
-    tmp.save(res_filename)
-    return res_filename
+    filtered_filename = "img/" + imid + ".res.png"
+    tmp.save(filtered_filename)
+    return filtered_filename
