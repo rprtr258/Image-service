@@ -1,6 +1,6 @@
 from flask import render_template, request, send_from_directory
 
-from filters import apply_convolution, cluster_filter
+from filters import apply_convolution, cluster_filter, hilbert_curve
 from app import app
 
 def convolution_filter(kernel, filter_name):
@@ -77,3 +77,17 @@ def cluster():
             return render_template("cluster.html", message="Url was not provided")
     else:
         return render_template("cluster.html")
+
+@app.route("/hilbert", methods=["GET", "POST"])
+def hilbert():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = hilbert_curve(request.form["url"])
+                return render_template("filter.html", message=f"Processed image {request.form['url']}", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")

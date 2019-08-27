@@ -4,6 +4,7 @@ from PIL import Image
 from sklearn.cluster import KMeans
 
 from convolution import apply_filter
+from hilbert import hilbert_curve_filter
 
 def load_image(url):
     with open("img/f.jpg", "wb") as f:
@@ -41,3 +42,10 @@ def cluster_filter(url, N):
     filtered_filename = "img/h.png"
     filtered.save(filtered_filename)
     return filtered_filename
+
+def hilbert_curve(url):
+    image = load_image(url)
+    tmp = hilbert_curve_filter(image)
+    res_filename = "img/fajs.png"
+    tmp.save(res_filename)
+    return res_filename
