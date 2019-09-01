@@ -1,4 +1,5 @@
 from time import asctime
+import os
 
 import requests
 import numpy as np
@@ -70,3 +71,12 @@ def hilbert_darken(url):
     filtered_filename = "img/" + imid + ".res.png"
     Image.fromarray(tmpa.astype(np.uint8), "RGB").save(filtered_filename)
     return filtered_filename
+
+def transfer_style(url, style_name):
+    image, imid = load_image(url)
+    os.chdir("fast-style-transfer/")
+    os.system(f"python evaluate.py --in-path '../img/{imid}.orig.png' --out-path ../ --checkpoint ../ckpts/{style_name}.ckpt")
+    os.chdir("..")
+    os.system(f"mv '{imid}.orig.png' 'img/{imid}.res.png'")
+    os.system(f"rm '{imid}.orig.png'")
+    return "img/" + imid + ".res.png"

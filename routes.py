@@ -1,6 +1,6 @@
 from flask import render_template, request, send_from_directory
 
-from filters import apply_convolution, cluster_filter, hilbert_curve, hilbert_darken
+from filters import apply_convolution, cluster_filter, hilbert_curve, hilbert_darken, transfer_style
 from app import app
 
 def convolution_filter(kernel, filter_name):
@@ -98,6 +98,90 @@ def hilbertdarken():
         if "url" in request.form:
             try:
                 image_file = hilbert_darken(request.form["url"])
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")
+
+@app.route("/lamuse", methods=["GET", "POST"])
+def lamuse():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = transfer_style(request.form["url"], "la_muse")
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")
+
+@app.route("/scream", methods=["GET", "POST"])
+def scream():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = transfer_style(request.form["url"], "scream")
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")
+
+@app.route("/udnie", methods=["GET", "POST"])
+def udnie():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = transfer_style(request.form["url"], "udnie")
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")
+
+@app.route("/wave", methods=["GET", "POST"])
+def wave():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = transfer_style(request.form["url"], "wave")
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")
+
+@app.route("/wreck", methods=["GET", "POST"])
+def wreck():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = transfer_style(request.form["url"], "wreck")
+                return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("filter.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("filter.html", message="Url was not provided")
+    else:
+        return render_template("filter.html")
+
+@app.route("/rain_princess", methods=["GET", "POST"])
+def rain_princess():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = transfer_style(request.form["url"], "rain_princess")
                 return render_template("filter.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
             except Exception as e:
                 return render_template("filter.html", message=f"Error occured:\n{e}")
