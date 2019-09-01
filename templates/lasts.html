@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}
+Last queries
+{% endblock %}
+
+{% block styles %}
+<style>
+    .history>img {
+        max-height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% for imid in images %}
+<div class="history">
+    {{ imid }}<br>
+    <img src="/img/{{ imid }}.orig.png">
+    <img src="/img/{{ imid }}.res.png">
+    <br>
+</div>
+{% endfor %}
+{% endblock %}

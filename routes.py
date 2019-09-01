@@ -1,3 +1,5 @@
+import os
+
 from flask import render_template, request, send_from_directory
 
 from filters import apply_convolution, cluster_filter, hilbert_curve, hilbert_darken, transfer_style
@@ -27,6 +29,14 @@ def send_img(path):
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
+
+@app.route("/lasts", methods=["GET"])
+def lasts():
+    saved_images = os.listdir("img")
+    saved_images = filter(lambda x: ".res.png" in x, saved_images)
+    saved_images = map(lambda x: x[:-8], saved_images)
+    saved_images = list(sorted(list(saved_images)))
+    return render_template("lasts.html", images=saved_images)
 
 @app.route("/blur", methods=["GET", "POST"])
 def blur():

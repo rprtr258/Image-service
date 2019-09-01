@@ -24,6 +24,9 @@
                 color: rgb(200, 200, 200);
                 text-decoration: cadetblue;
             }
+            nav>a {
+                padding-right: 1rem;
+            }
         </style>
         {% block styles %}
         {% endblock %}
@@ -31,6 +34,7 @@
     <body>
         <nav>
             <a href="/"><b>Index</b></a>
+            <a href="/lasts"><b>Last quieries</b></a>
         </nav>
         <div class="container">
             {% block body %}
