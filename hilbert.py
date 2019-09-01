@@ -15,7 +15,7 @@ def hilbert_curve_filter(image):
   points = hilbert_curve(*map(np.array, [[0, 0], [W, 0], [W, W], [0, W]]), np.array(f))
   points = list(filter(lambda x: x is not None, points))
   draw.line(list(map(lambda p: (int(p[1]) * 2, int(p[0]) * 2), points)), fill=(0, 0, 0))
-  return himage.crop((0, 0, image.shape[1] * 2, image.shape[0] * 2))
+  return himage.crop((0, 0, image.shape[1] * 2, image.shape[0] * 2)).resize((image.shape[1], image.shape[0]), resample=Image.BICUBIC)
 
 def is_block_black(p, q, im):
   THRESHOLD = 0.6
