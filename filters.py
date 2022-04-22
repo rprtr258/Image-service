@@ -105,7 +105,6 @@ def shader_filter(url, fragment_shader_source):
 
     # Set context to window
     glfw.make_context_current(window)
-
     # Initial data
     quad_data = [
     #   positions     texture coordinates
@@ -135,66 +134,17 @@ def shader_filter(url, fragment_shader_source):
     }
     """
 
-    # Fragment shader
-    fragment_shader = """
-    #version 330
-
-    uniform sampler2D source;
-    in vec2 outTexCoords;
-
-    void main() {
-        ivec2 textureSize2d = textureSize(source, 0); // Width and height of texture image
-
-        // coloring
-        //vec3 outColor = vec3(0.3, 0.1, 0.2);
-        //gl_FragColor = texture(source, outTexCoords) * vec4(outColor, 1.0f);
-
-        // inversion
-        //gl_FragColor = vec4(1., 1., 1., 2.) - texture(source, outTexCoords);
-
-        // RGB
-        //vec2 uv = gl_FragCoord.xy / textureSize2d;
-        //vec3 color;
-        //if (uv.x < 1./3.) {
-        //    color = vec3(1., 0., 0.);
-        //} else if (uv.x < 2./3.) {
-        //    color = vec3(0., 1., 0.);
-        //} else {
-        //    color = vec3(0., 0., 1.);
-        //}
-        //gl_FragColor = vec4(texture(source, outTexCoords).rgb * color, 1.);
-
-        // remove body color
-        // TODO: smooth
-        //vec4 c = texture(source, outTexCoords);
-        //float threshold = 60. / 255.;
-        //if (abs(c.r - 74./255.) < threshold && abs(c.g - 38./255.) < threshold && abs(c.b - 26./255.) < threshold) {
-        //    gl_FragColor = vec4(vec3((c.r + c.g + c.b) / 3.), 1.);
-        //} else {
-        //    gl_FragColor = c;
-        //}
-
-        // mirror horizontally
-        if (gl_FragCoord.x / textureSize2d.x < 0.5) {
-            gl_FragColor = texture(source, vec2(textureSize2d.x - outTexCoords.x, outTexCoords.y));
-        } else {
-            gl_FragColor = texture(source, outTexCoords);
-        }
-    }"""
-    fragment_shader = fragment_shader_source
-
     # Compile shaders
     try:
         shader = OpenGL.GL.shaders.compileProgram(
             OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
-            OpenGL.GL.shaders.compileShader(fragment_shader, GL_FRAGMENT_SHADER)
+            OpenGL.GL.shaders.compileShader(fragment_shader_source, GL_FRAGMENT_SHADER)
         )
     except OpenGL.GL.shaders.ShaderCompilationError as e:
         print("Error compiling shader:")
         for x in e.args:
             print(x)
         exit(1)
-
 
     # VBO
     vertex_buffer_object = glGenBuffers(1)
@@ -247,6 +197,7 @@ def shader_filter(url, fragment_shader_source):
     glBindFramebuffer(GL_FRAMEBUFFER, fb_obj)
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb_obj)
 
+
     # Check frame buffer (that simple buffer should not be an issue)
     status = glCheckFramebufferStatus(GL_FRAMEBUFFER)
     if status != GL_FRAMEBUFFER_COMPLETE:
@@ -265,10 +216,11 @@ def shader_filter(url, fragment_shader_source):
 
     # Read the data and create the image
     image_buffer = glReadPixels(0, 0, image.width, image.height, GL_RGBA, GL_UNSIGNED_BYTE)
+    glfw.terminate()
+
     image_out = np.frombuffer(image_buffer, dtype=np.uint8).reshape(image.height, image.width, 4)
     img = Image.fromarray(image_out, 'RGBA')
     filtered_filename = f"img/{imid}.res.png"
     img.save(filtered_filename)
-    glfw.terminate() # TODO: do earlier?
     return filtered_filename
 
