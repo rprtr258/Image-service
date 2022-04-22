@@ -2,7 +2,7 @@ import os
 
 from flask import render_template, request, send_from_directory
 
-from filters import apply_convolution, cluster_filter, hilbert_curve, hilbert_darken, transfer_style
+from filters import apply_convolution, cluster_filter, hilbert_curve, hilbert_darken, transfer_style, shader_filter
 from app import app
 
 def convolution_filter(kernel, filter_name):
@@ -199,3 +199,18 @@ def rain_princess():
             return render_template("filter.html", message="Url was not provided")
     else:
         return render_template("filter.html")
+
+
+@app.route("/shader", methods=["GET", "POST"])
+def shader():
+    if request.method == "POST":
+        if "url" in request.form:
+            try:
+                image_file = shader_filter(request.form["url"], request.form["fragment_shader_source"])
+                return render_template("shader.html", message=f"Processed image <a href=\"{request.form['url']}\">{request.form['url']}</a>", image_file=image_file)
+            except Exception as e:
+                return render_template("shader.html", message=f"Error occured:\n{e}")
+        else:
+            return render_template("shader.html", message="Url was not provided")
+    else:
+        return render_template("shader.html")
