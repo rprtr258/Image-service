@@ -1,9 +1,6 @@
-{% extends "base.html" %}
-
-{% block title %}
+{{template "BeforeTitle"}}
 Thank you, Mario
-{% endblock %}
-
-{% block body %}
-    <img src='https://legendsoflocalization.com/wp-content/uploads/2013/02/super-mario-bros-gameplay.png'>
-{% endblock %}
+{{template "AfterTitle"}}
+{{template "BeforeBody"}}
+<img src='https://legendsoflocalization.com/wp-content/uploads/2013/02/super-mario-bros-gameplay.png'>
+{{template "AfterBody"}}

@@ -1,11 +1,6 @@
-{% extends "base.html" %}
-
-{% block title %}
+{{template "BeforeTitle"}}
 Last queries
-{% endblock %}
-
-{% block styles %}
-<style>
+{{template "AfterTitle"}}
     .history>img {
         max-height: 500px;
     }
@@ -13,16 +8,13 @@ Last queries
         color: rgb(200, 200, 200);
         text-decoration: cadetblue;
     }
-</style>
-{% endblock %}
-
-{% block body %}
-{% for imid in images %}
+{{template "BeforeBody"}}
+{{range .}}
 <div class="history">
-    <span class="description">{{ imid }}</span><br>
-    <img src="/img/{{ imid }}.orig.png">
-    <img src="/img/{{ imid }}.res.png">
+    <span class="description">{{.}}</span><br>
+    <img src="/img/{{.}}.orig.png">
+    <img src="/img/{{.}}.res.png">
     <br>
 </div>
-{% endfor %}
-{% endblock %}
+{{end}}
+{{template "AfterBody"}}

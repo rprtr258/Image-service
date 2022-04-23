@@ -1,11 +1,6 @@
-{% extends "base.html" %}
-
-{% block title %}
-{{ filter_name }} filter
-{% endblock %}
-
-{% block styles %}
-<style>
+{{template "BeforeTitle"}}
+{{.FilterName}} filter
+{{template "AfterTitle"}}
 form {
     margin-left: .5rem;
     margin-top: .5rem;
@@ -29,20 +24,11 @@ form {
     margin-right: .75rem;
     float: right;
 }
-</style>
-{% endblock %}
-
-{% block body %}
+{{template "BeforeBody"}}
     <form method="POST">
-        <div class="label">Image url: 
-            <input class="text" type="text" name="url" style="width: 600px">
-            {% block parameters %}
-            {% endblock %}
-        </div>
+        <div class="label">Image url: <input class="text" type="text" name="url" style="width: 600px"></div>
         <input class="button" type="submit">
     </form>
-    <p>
-        {{ message|safe }}
-    </p>
-    <img src="{{ image_file }}">
-{% endblock %}
+    <p style="color: red;">{{.Message}}</p>
+    {{if .ImageFile}}<img src="{{.ImageFile}}">{{end}}
+{{template "AfterBody"}}

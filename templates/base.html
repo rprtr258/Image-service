@@ -1,6 +1,10 @@
+{{define "BeforeTitle"}}
 <html>
     <head>
-        <title>{% block title %}{% endblock %}</title>
+        <title>
+{{end}}
+{{define "AfterTitle"}}
+</title>
         <style>
             body {
                 background-color: #272b30;
@@ -27,9 +31,9 @@
             nav>a {
                 padding-right: 1rem;
             }
+{{end}}
+{{define "BeforeBody"}}
         </style>
-        {% block styles %}
-        {% endblock %}
     </head>
     <body>
         <nav>
@@ -37,8 +41,9 @@
             <a href="/lasts"><b>Last queries</b></a>
         </nav>
         <div class="container">
-            {% block body %}
-            {% endblock %}
+{{end}}
+{{define "AfterBody"}}
         </div>
     </body>
 </html>
+{{end}}
