@@ -406,7 +406,7 @@ func is_block_black(r image.Rectangle, im image.Image) bool {
 			brightnessSum += float64(r+g+b) / 3 / 0xFFFF
 		}
 	}
-	THRESHOLD := 0.5
+	THRESHOLD := 0.6
 	return brightnessSum < THRESHOLD*float64(r.Dx()*r.Dy())
 }
 
@@ -495,9 +495,6 @@ func abs(x int) int {
 }
 
 func drawLine(im *image.RGBA, p, q image.Point) {
-    if p == q {
-        return
-    }
 	if abs(q.Y-p.Y) < abs(q.X-p.X) {
 		if p.X > q.X {
 			p, q = q, p
@@ -516,8 +513,8 @@ func drawLine(im *image.RGBA, p, q image.Point) {
 func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 image.Point, size int) []image.Point {
 	if size <= 2 {
 		if is_block_black(rectFrom4Points(p1, p2, p3, p4), sourceImage) {
-            drawLine(resultImage, p1, p4)
-			return []image.Point{p1, p4}
+            mid := p1.Add(p2).Add(p3).Add(p4).Div(4)
+			return []image.Point{mid, mid}
 		} else {
 			return nil
 		}
@@ -526,7 +523,7 @@ func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 im
 	// | |1-2 3-4|
 	// | | a| |d |
 	// | |4-3 2-1|
-	// v ||  p  ||
+	// v ||     ||
 	// p |1 4-1 4|
 	// 1 ||b| |c||
 	// 2 |2-3 2-3|
@@ -542,21 +539,25 @@ func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 im
 		return nil
 	}
 	if lt == nil {
-		lt = []image.Point{p1, p1}
+        p := p1.Add(p12h.Add(p23h).Div(2))
+		lt = []image.Point{p, p}
 	}
 	if lb == nil {
-		lb = []image.Point{p2, p2}
+        p := p2.Add(p23h.Sub(p12h).Div(2))
+		lb = []image.Point{p, p}
 	}
 	if rb == nil {
-		rb = []image.Point{p3, p3}
+        p := p3.Sub(p12h.Add(p23h).Div(2))
+		rb = []image.Point{p, p}
 	}
 	if rt == nil {
-		rt = []image.Point{p4, p4}
+        p := p4.Add(p12h.Sub(p23h).Div(2))
+		rt = []image.Point{p, p}
 	}
 	drawLine(resultImage, lt[1], lb[0])
 	drawLine(resultImage, lb[1], rb[0])
 	drawLine(resultImage, rb[1], rt[0])
-	return []image.Point{p1, p4}
+	return []image.Point{lt[0], rt[1]}
 }
 
 // TODO: try also https://en.wikipedia.org/wiki/Z-order_curve
