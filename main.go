@@ -44,13 +44,13 @@ func load_image(url string) (res string, imid string, err error) {
 		format = "png"
 	default:
 		err = fmt.Errorf("Image format %q is not supported", contentType)
-        return
+		return
 	}
 	res = fmt.Sprintf("img/%s.orig.%s", imid, format)
 	f, err := os.Create(res)
-    defer func() {
-        f.Close()
-    }()
+	defer func() {
+		f.Close()
+	}()
 	if err != nil {
 		return
 	}
@@ -181,24 +181,17 @@ func transfer_style(imid string, style_name string) (res string, err error) {
 	return
 }
 
+type FilterPageData struct {
+	FilterName string
+	Message    string
+	ImageFile  *string
+}
+
 func renderTemplateOrPanic(rootTemplate *template.Template, w io.Writer, name string, data interface{}) {
 	if err := rootTemplate.ExecuteTemplate(w, name, data); err != nil {
 		log.Fatalf("Error rendering template: name=%q data=%v err=%q", name, data, err)
 	}
 }
-
-type (
-	convolutionFilter struct {
-		pages_templates *template.Template
-		filterName      string
-		kernel          [][]int
-	}
-	FilterPageData struct {
-		FilterName string
-		Message    string
-		ImageFile  *string
-	}
-)
 
 func renderFilterPage(pages_templates *template.Template, w http.ResponseWriter, templateName, filterName, message string) {
 	renderTemplateOrPanic(pages_templates, w, templateName, FilterPageData{
@@ -208,41 +201,6 @@ func renderFilterPage(pages_templates *template.Template, w http.ResponseWriter,
 	})
 }
 
-func (f *convolutionFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		r.ParseForm()
-		if !r.PostForm.Has("url") {
-			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, "'url' is not provided")
-			return
-		}
-		imageUrl := r.PostFormValue("url")
-		imageFilename, imid, err := load_image(imageUrl)
-		if err != nil {
-			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
-			return
-		}
-		im, err := loadImageFile(imageFilename)
-		if err != nil {
-			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
-			return
-		}
-		image_file, err := apply_convolution(im, imid, f.kernel)
-		ff := FilterPageData{
-			FilterName: f.filterName,
-		}
-		if err != nil {
-			ff.Message = fmt.Sprintf("Error occured:\n%q", err)
-		} else {
-			ff.Message = fmt.Sprintf("Processed image %q", imageUrl)
-			ff.ImageFile = &image_file
-			// TODO: add timing
-		}
-		renderTemplateOrPanic(f.pages_templates, w, "filter.html", ff)
-	} else {
-		renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, "")
-	}
-}
-
 type Filter interface {
 	filterName() string
 	templateName() string
@@ -250,6 +208,7 @@ type Filter interface {
 	process(imageFilename string, imageId string) (string, error)
 }
 
+// TODO: rename to ServeHTTP
 func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filterName := f.filterName()
@@ -300,6 +259,19 @@ func (f *BasicFilter) templateName() string {
 
 func (f *BasicFilter) pages_templates() *template.Template {
 	return f._pages_templates
+}
+
+type convolutionFilter struct {
+	BasicFilter
+	kernel [][]int
+}
+
+func (f *convolutionFilter) process(imageFilename string, imageId string) (string, error) {
+	im, err := loadImageFile(imageFilename)
+	if err != nil {
+		return "", fmt.Errorf("Error occured during loading image:\n%q", err)
+	}
+	return apply_convolution(im, imageId, f.kernel)
 }
 
 type StyleTransferFilter struct {
@@ -481,95 +453,86 @@ func Route(w http.ResponseWriter, r *http.Request) {
 		}{sourceImages, resultImages})
 	})
 
-	mux.Handle("/blur", &convolutionFilter{
-		pages_templates,
-		"Blur",
+	mux.HandleFunc("/blur", filterToHandler(&convolutionFilter{
+		BasicFilter{"Blur", "filter.html", pages_templates},
 		[][]int{
 			{1, 1, 1},
 			{1, 1, 1},
 			{1, 1, 1},
 		},
-	})
+	}))
 
-	mux.Handle("/weakblur", &convolutionFilter{
-		pages_templates,
-		"Weak blur",
+	mux.HandleFunc("/weakblur", filterToHandler(&convolutionFilter{
+		BasicFilter{"Weak blur", "filter.html", pages_templates},
 		[][]int{
 			{0, 1, 0},
 			{1, 1, 1},
 			{0, 1, 0},
 		},
-	})
+	}))
 
-	mux.Handle("/emboss", &convolutionFilter{
-		pages_templates,
-		"Emboss",
+	mux.HandleFunc("/emboss", filterToHandler(&convolutionFilter{
+		BasicFilter{"Emboss", "filter.html", pages_templates},
 		[][]int{
 			{-2, -1, 0},
 			{-1, 1, 1},
 			{0, 1, 2},
 		},
-	})
+	}))
 
-	mux.Handle("/sharpen", &convolutionFilter{
-		pages_templates,
-		"Sharpen",
+	mux.HandleFunc("/sharpen", filterToHandler(&convolutionFilter{
+		BasicFilter{"Sharpen", "filter.html", pages_templates},
 		[][]int{
 			{0, -1, 0},
 			{-1, 5, -1},
 			{0, -1, 0},
 		},
-	})
+	}))
 
-	mux.Handle("/edgeenhance", &convolutionFilter{
-		pages_templates,
-		"Edge enhance",
+	mux.HandleFunc("/edgeenhance", filterToHandler(&convolutionFilter{
+		BasicFilter{"Edge enhance", "filter.html", pages_templates},
 		[][]int{
 			{0, 0, 0},
 			{-1, 1, 0},
 			{0, 0, 0},
 		},
-	})
+	}))
 
-	mux.Handle("/edgedetect1", &convolutionFilter{
-		pages_templates,
-		"Edge detect 1",
+	mux.HandleFunc("/edgedetect1", filterToHandler(&convolutionFilter{
+		BasicFilter{"Edge detect 1", "filter.html", pages_templates},
 		[][]int{
 			{1, 0, -1},
 			{0, 0, 0},
 			{-1, 0, 1},
 		},
-	})
+	}))
 
-	mux.Handle("/edgedetect2", &convolutionFilter{
-		pages_templates,
-		"Edge detect 2",
+	mux.HandleFunc("/edgedetect2", filterToHandler(&convolutionFilter{
+		BasicFilter{"Edge detect 2", "filter.html", pages_templates},
 		[][]int{
 			{0, -1, 0},
 			{-1, 4, -1},
 			{0, -1, 0},
 		},
-	})
+	}))
 
-	mux.Handle("/horizontallines", &convolutionFilter{
-		pages_templates,
-		"Horizontal lines",
+	mux.HandleFunc("/horizontallines", filterToHandler(&convolutionFilter{
+		BasicFilter{"Horizontal lines", "filter.html", pages_templates},
 		[][]int{
 			{-1, -1, -1},
 			{2, 2, 2},
 			{-1, -1, -1},
 		},
-	})
+	}))
 
-	mux.Handle("/verticallines", &convolutionFilter{
-		pages_templates,
-		"Vertical lines",
+	mux.HandleFunc("/verticallines", filterToHandler(&convolutionFilter{
+		BasicFilter{"Vertical lines", "filter.html", pages_templates},
 		[][]int{
 			{-1, 2, -1},
 			{-1, 2, -1},
 			{-1, 2, -1},
 		},
-	})
+	}))
 
 	// TODO: draw lokot'
 	// TODO: fix overflows
