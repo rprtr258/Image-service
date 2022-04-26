@@ -28,15 +28,29 @@ func get_next_filename() string {
 
 // TODO: rewrite paths to paths.join
 // TODO: check if it is actually image, restrict size
-func load_image(url string) (res image.Image, imid string, err error) {
+func load_image(url string) (res string, imid string, err error) {
 	// TODO: cache files by url
 	imid = get_next_filename()
-	image_filename := fmt.Sprintf("img/%s.orig.tmp", imid)
-	f, err := os.Create(image_filename)
+	r, err := http.Get(url)
 	if err != nil {
 		return
 	}
-	r, err := http.Get(url)
+	// TODO: check for content type to deduce image format
+	var format string
+	switch contentType := r.Header.Get("Content-Type"); contentType {
+	case "image/jpeg":
+		format = "jpeg"
+	case "image/png":
+		format = "png"
+	default:
+		err = fmt.Errorf("Image format %q is not supported", contentType)
+        return
+	}
+	res = fmt.Sprintf("img/%s.orig.%s", imid, format)
+	f, err := os.Create(res)
+    defer func() {
+        f.Close()
+    }()
 	if err != nil {
 		return
 	}
@@ -50,16 +64,16 @@ func load_image(url string) (res image.Image, imid string, err error) {
 	if _, err = f.Write(data); err != nil {
 		return
 	}
+	return
+}
+
+func loadImageFile(image_filename string) (res image.Image, err error) {
 	ff, err := os.Open(image_filename)
 	if err != nil {
 		return
 	}
-	res, format, err := image.Decode(ff)
+	res, _, err = image.Decode(ff)
 	if err != nil {
-		return
-	}
-	real_image_filename := fmt.Sprintf("img/%s.orig.%s", imid, format)
-	if err = os.Rename(image_filename, real_image_filename); err != nil {
 		return
 	}
 	return
@@ -202,13 +216,17 @@ func (f *convolutionFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		imageUrl := r.PostFormValue("url")
-		image, imid, err := load_image(imageUrl)
-
+		imageFilename, imid, err := load_image(imageUrl)
 		if err != nil {
 			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 			return
 		}
-		image_file, err := apply_convolution(image, imid, f.kernel)
+		im, err := loadImageFile(imageFilename)
+		if err != nil {
+			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
+			return
+		}
+		image_file, err := apply_convolution(im, imid, f.kernel)
 		ff := FilterPageData{
 			FilterName: f.filterName,
 		}
@@ -225,23 +243,30 @@ func (f *convolutionFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO: change to much faster network / remove
-func style_transfer_route(pages_templates *template.Template, filterName string, styleName string) func(http.ResponseWriter, *http.Request) {
+type Filter interface {
+	filterName() string
+	templateName() string
+	pages_templates() *template.Template
+	process(imageFilename string, imageId string) (string, error)
+}
+
+func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		filterName := f.filterName()
 		if r.Method == "POST" {
 			r.ParseForm()
 			if !r.PostForm.Has("url") {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, "'url' is not provided")
+				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, "'url' is not provided")
 				return
 			}
 			imageUrl := r.PostFormValue("url")
-			_, imid, err := load_image(imageUrl)
+			sourceImageFilename, imid, err := load_image(imageUrl)
 
 			if err != nil {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
+				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return
 			}
-			image_file, err := transfer_style(imid, styleName)
+			image_file, err := f.process(sourceImageFilename, imid)
 			ff := FilterPageData{
 				FilterName: filterName,
 			}
@@ -252,11 +277,39 @@ func style_transfer_route(pages_templates *template.Template, filterName string,
 				ff.ImageFile = &image_file
 				// TODO: add timing
 			}
-			renderTemplateOrPanic(pages_templates, w, "filter.html", ff)
+			renderTemplateOrPanic(f.pages_templates(), w, f.templateName(), ff)
 		} else {
-			renderFilterPage(pages_templates, w, "filter.html", filterName, "")
+			renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, "")
 		}
 	}
+}
+
+type BasicFilter struct {
+	_filterName      string
+	_templateName    string
+	_pages_templates *template.Template
+}
+
+func (f *BasicFilter) filterName() string {
+	return f._filterName
+}
+
+func (f *BasicFilter) templateName() string {
+	return f._templateName
+}
+
+func (f *BasicFilter) pages_templates() *template.Template {
+	return f._pages_templates
+}
+
+type StyleTransferFilter struct {
+	BasicFilter
+	styleName string
+}
+
+// TODO: change to much faster network / remove
+func (f *StyleTransferFilter) process(imageFilename string, imageId string) (string, error) {
+	return transfer_style(imageId, f.styleName)
 }
 
 func is_block_black(p image.Point, blockWidth, blockHeight int, im image.Image) bool {
@@ -543,13 +596,14 @@ func Route(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			imageUrl := r.PostFormValue("url")
-			im, imid, err := load_image(imageUrl)
+			imageFilename, imid, err := load_image(imageUrl)
 			if err != nil {
-				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error occured:\n%q", err),
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("Error occured while loading image:\n%q", err))
+				return
+			}
+			im, err := loadImageFile(imageFilename)
+			if err != nil {
+				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("Error occured while loading image:\n%q", err))
 				return
 			}
 			X := make([][][]uint32, im.Bounds().Dx())
@@ -650,34 +704,30 @@ func Route(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	mux.HandleFunc("/lamuse", style_transfer_route(pages_templates, "La muse styling", "la_muse"))
-	mux.HandleFunc("/scream", style_transfer_route(pages_templates, "Scream styling", "scream"))
-	mux.HandleFunc("/wave", style_transfer_route(pages_templates, "Wave styling", "wave"))
-	mux.HandleFunc("/wreck", style_transfer_route(pages_templates, "Wreck styling", "wreck"))
-	mux.HandleFunc("/udnie", style_transfer_route(pages_templates, "Udnie styling", "udnie"))
-	mux.HandleFunc("/rain_princess", style_transfer_route(pages_templates, "Rain princess styling", "rain_princess"))
+	mux.HandleFunc("/lamuse", filterToHandler(&StyleTransferFilter{BasicFilter{"La muse styling", "filter.html", pages_templates}, "la_muse"}))
+	mux.HandleFunc("/scream", filterToHandler(&StyleTransferFilter{BasicFilter{"Scream styling", "filter.html", pages_templates}, "scream"}))
+	mux.HandleFunc("/wave", filterToHandler(&StyleTransferFilter{BasicFilter{"Wave styling", "filter.html", pages_templates}, "wave"}))
+	mux.HandleFunc("/wreck", filterToHandler(&StyleTransferFilter{BasicFilter{"Wreck styling", "filter.html", pages_templates}, "wreck"}))
+	mux.HandleFunc("/udnie", filterToHandler(&StyleTransferFilter{BasicFilter{"Udnie styling", "filter.html", pages_templates}, "udnie"}))
+	mux.HandleFunc("/rain_princess", filterToHandler(&StyleTransferFilter{BasicFilter{"Rain princess styling", "filter.html", pages_templates}, "rain_princess"}))
 
 	mux.HandleFunc("/hilbert", func(w http.ResponseWriter, r *http.Request) {
 		filterName := "Hilbert curve"
 		if r.Method == "POST" {
 			r.ParseForm()
 			if !r.PostForm.Has("url") {
-				renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-					filterName,
-					"'url' is not provided",
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "filter.html", filterName, "'url' is not provided")
 				return
 			}
 			imageUrl := r.PostFormValue("url")
-			im, imid, err := load_image(imageUrl)
-
+			imageFilename, imid, err := load_image(imageUrl)
 			if err != nil {
-				renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error occured:\n%q", err),
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
+				return
+			}
+			im, err := loadImageFile(imageFilename)
+			if err != nil {
+				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
 				return
 			}
 			image_file, err := hilbert_curve(im, imid)
@@ -710,14 +760,14 @@ func Route(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			imageUrl := r.PostFormValue("url")
-			im, imid, err := load_image(imageUrl)
-
+			imageFilename, imid, err := load_image(imageUrl)
 			if err != nil {
-				renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error occured:\n%q", err),
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
+				return
+			}
+			im, err := loadImageFile(imageFilename)
+			if err != nil {
+				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
 				return
 			}
 			image_file, err := hilbert_darken(im, imid)
