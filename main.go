@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -185,26 +186,26 @@ type (
 	}
 )
 
+func renderFilterPage(pages_templates *template.Template, w http.ResponseWriter, templateName, filterName, message string) {
+	renderTemplateOrPanic(pages_templates, w, templateName, FilterPageData{
+		filterName,
+		message,
+		nil,
+	})
+}
+
 func (f *convolutionFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		r.ParseForm()
 		if !r.PostForm.Has("url") {
-			renderTemplateOrPanic(f.pages_templates, w, "filter.html", FilterPageData{
-				f.filterName,
-				"'url' is not provided",
-				nil,
-			})
+			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, "'url' is not provided")
 			return
 		}
 		imageUrl := r.PostFormValue("url")
 		image, imid, err := load_image(imageUrl)
 
 		if err != nil {
-			renderTemplateOrPanic(f.pages_templates, w, "filter.html", FilterPageData{
-				f.filterName,
-				fmt.Sprintf("Error occured:\n%q", err),
-				nil,
-			})
+			renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 			return
 		}
 		image_file, err := apply_convolution(image, imid, f.kernel)
@@ -220,11 +221,7 @@ func (f *convolutionFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		renderTemplateOrPanic(f.pages_templates, w, "filter.html", ff)
 	} else {
-		renderTemplateOrPanic(f.pages_templates, w, "filter.html", FilterPageData{
-			f.filterName,
-			"",
-			nil,
-		})
+		renderFilterPage(f.pages_templates, w, "filter.html", f.filterName, "")
 	}
 }
 
@@ -234,22 +231,14 @@ func style_transfer_route(pages_templates *template.Template, filterName string,
 		if r.Method == "POST" {
 			r.ParseForm()
 			if !r.PostForm.Has("url") {
-				renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-					filterName,
-					"'url' is not provided",
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "filter.html", filterName, "'url' is not provided")
 				return
 			}
 			imageUrl := r.PostFormValue("url")
 			_, imid, err := load_image(imageUrl)
 
 			if err != nil {
-				renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error occured:\n%q", err),
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return
 			}
 			image_file, err := transfer_style(imid, styleName)
@@ -265,11 +254,7 @@ func style_transfer_route(pages_templates *template.Template, filterName string,
 			}
 			renderTemplateOrPanic(pages_templates, w, "filter.html", ff)
 		} else {
-			renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-				filterName,
-				"",
-				nil,
-			})
+			renderFilterPage(pages_templates, w, "filter.html", filterName, "")
 		}
 	}
 }
@@ -414,15 +399,33 @@ func Route(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error reading images: %v", err)
 			return
 		}
-		names := make([]string, 0)
+		sourceImages := make(map[string]template.URL)
+		resultImages := make(map[string]template.URL)
 		for _, x := range saved_images {
 			filename := x.Name()
-			if strings.HasSuffix(filename, "res.png") {
-				names = append(names, filename[:len(filename)-8])
+			dotBeforeExtension := strings.LastIndex(filename, ".")
+			if dotBeforeExtension == -1 {
+				continue
+			}
+			dotBeforeOrigOrRes := strings.LastIndex(filename[:dotBeforeExtension], ".")
+			if dotBeforeOrigOrRes == -1 {
+				continue
+			}
+			imageId := filename[:dotBeforeOrigOrRes]
+			origOrRes := filename[dotBeforeOrigOrRes+1 : dotBeforeExtension]
+			fullFilepath := filepath.Join("img", filename)
+			switch origOrRes {
+			case "orig":
+				sourceImages[imageId] = template.URL(fullFilepath)
+			case "res":
+				resultImages[imageId] = template.URL(fullFilepath)
 			}
 		}
 		// TODO: sort
-		renderTemplateOrPanic(pages_templates, w, "lasts.html", names)
+		renderTemplateOrPanic(pages_templates, w, "lasts.html", struct {
+			SourceImages map[string]template.URL
+			ResultImages map[string]template.URL
+		}{sourceImages, resultImages})
 	})
 
 	mux.Handle("/blur", &convolutionFilter{
@@ -524,35 +527,19 @@ func Route(w http.ResponseWriter, r *http.Request) {
 			r.ParseForm()
 			switch {
 			case !r.PostForm.Has("url"):
-				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-					filterName,
-					"'url' is not provided",
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "cluster.html", filterName, "'url' is not provided")
 				return
 			case !r.PostForm.Has("n"):
-				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-					filterName,
-					"'n' (number of clusters) is not provided",
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "cluster.html", filterName, "'n' (number of clusters) is not provided")
 				return
 			}
 			n_clusters, err := strconv.Atoi(r.PostFormValue("n"))
 			switch {
 			case err != nil:
-				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error in parameter 'n':\n%q", err),
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("Error parsing parameter 'n':\n%q", err))
 				return
 			case n_clusters < 2:
-				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("'n' must be at least 2, you gave n=%d", n_clusters),
-					nil,
-				})
+				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("'n' must be at least 2, you gave n=%d", n_clusters))
 				return
 			}
 			imageUrl := r.PostFormValue("url")
@@ -659,11 +646,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 			}
 			renderTemplateOrPanic(pages_templates, w, "cluster.html", ff)
 		} else {
-			renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-				filterName,
-				"",
-				nil,
-			})
+			renderFilterPage(pages_templates, w, "cluster.html", filterName, "")
 		}
 	})
 
@@ -710,11 +693,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 			}
 			renderTemplateOrPanic(pages_templates, w, "filter.html", ff)
 		} else {
-			renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-				filterName,
-				"",
-				nil,
-			})
+			renderFilterPage(pages_templates, w, "filter.html", filterName, "")
 		}
 	})
 
@@ -754,11 +733,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 			}
 			renderTemplateOrPanic(pages_templates, w, "filter.html", ff)
 		} else {
-			renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-				filterName,
-				"",
-				nil,
-			})
+			renderFilterPage(pages_templates, w, "filter.html", filterName, "")
 		}
 	})
 
@@ -807,11 +782,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 			}
 			renderTemplateOrPanic(pages_templates, w, "shader.html", ff)
 		} else {
-			renderTemplateOrPanic(pages_templates, w, "shader.html", FilterPageData{
-				filterName,
-				"",
-				nil,
-			})
+			renderFilterPage(pages_templates, w, "shader.html", filterName, "")
 		}
 	})
 

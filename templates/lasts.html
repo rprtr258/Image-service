@@ -9,11 +9,12 @@ Last queries
         text-decoration: cadetblue;
     }
 {{template "BeforeBody"}}
-{{range .}}
+{{$data := .}}
+{{range $imageId, $resultFilename := .ResultImages}}
 <div class="history">
-    <span class="description">{{.}}</span><br>
-    <img src="/img/{{.}}.orig.png">
-    <img src="/img/{{.}}.res.png">
+    <span class="description">{{$imageId}}</span><br>
+    <img src="{{index $data.SourceImages $imageId}}">
+    <img src="{{$resultFilename}}">
     <br>
 </div>
 {{end}}
