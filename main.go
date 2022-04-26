@@ -321,30 +321,24 @@ func (f KMeansFilter) process(imageFilename string, imageId string, form url.Val
         err = fmt.Errorf("Error occured while loading image:\n%q", err)
         return
     }
-    X := make([][][]uint32, im.Bounds().Dx())
-    for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-        X[i] = make([][]uint32, im.Bounds().Dy())
-        for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-            r, g, b, _ := im.At(i, j).RGBA()
-            X[i][j] = []uint32{r, g, b}
-        }
-    }
     kmeans := make([][]uint32, n_clusters)
-    sumAndCount := make([][]uint32, n_clusters) // sum of Rs, Gs, Bs and count
+    sumAndCount := make([][]uint64, n_clusters) // sum of Rs, Gs, Bs and count
     rand.Seed(0)
+    // TODO: init using https://en.wikipedia.org/wiki/K-means++
     for i := 0; i < n_clusters; i++ {
         kmeans[i] = []uint32{
-            rand.Uint32() / 0x100,
-            rand.Uint32() / 0x100,
-            rand.Uint32() / 0x100,
+            rand.Uint32() / 0x10000,
+            rand.Uint32() / 0x10000,
+            rand.Uint32() / 0x10000,
         }
-        sumAndCount[i] = make([]uint32, 4)
+        sumAndCount[i] = make([]uint64, 4)
     }
     // TODO: optimize
     for epoch := 0; epoch < 100; epoch++ { // TODO: or diff is small enough
         for i := 0; i < n_clusters; i++ {
             sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
         }
+        // TODO: parallelize?
         for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
             for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
                 r, g, b, _ := im.At(i, j).RGBA()
@@ -357,9 +351,9 @@ func (f KMeansFilter) process(imageFilename string, imageId string, form url.Val
                         minDist = dist
                     }
                 }
-                sumAndCount[minCluster][0] += r
-                sumAndCount[minCluster][1] += g
-                sumAndCount[minCluster][2] += b
+                sumAndCount[minCluster][0] += uint64(r)
+                sumAndCount[minCluster][1] += uint64(g)
+                sumAndCount[minCluster][2] += uint64(b)
                 sumAndCount[minCluster][3]++
             }
         }
@@ -368,7 +362,7 @@ func (f KMeansFilter) process(imageFilename string, imageId string, form url.Val
             if count == 0 {
                 continue
             }
-            kmeans[i][0], kmeans[i][1], kmeans[i][2] = sumAndCount[i][0]/count, sumAndCount[i][1]/count, sumAndCount[i][2]/count
+            kmeans[i][0], kmeans[i][1], kmeans[i][2] = uint32(sumAndCount[i][0]/count), uint32(sumAndCount[i][1]/count), uint32(sumAndCount[i][2]/count)
         }
     }
     filtered_im := image.NewRGBA(im.Bounds())
