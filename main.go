@@ -480,6 +480,18 @@ func hilbert_curve(im image.Image, imid string) (string, error) {
 	return save_image(tmp, imid)
 }
 
+type HilbertFilter struct {
+    BasicFilter
+}
+
+func (f *HilbertFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
+    im, err := loadImageFile(imageFilename)
+    if err != nil {
+        return "", err
+    }
+    return hilbert_curve(im, imageId)
+}
+
 func hilbert_darken(im image.Image, imid string) (string, error) {
 	tmp := hilbert_curve_filter(im)
 	// TODO: uncomment
@@ -493,6 +505,18 @@ func hilbert_darken(im image.Image, imid string) (string, error) {
 	// 	}
 	// }
 	return save_image(tmp, imid)
+}
+
+type HilbertDarkenFilter struct {
+    BasicFilter
+}
+
+func (f *HilbertDarkenFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
+    im, err := loadImageFile(imageFilename)
+    if err != nil {
+        return "", err
+    }
+    return hilbert_darken(im, imageId)
 }
 
 type ShaderFilter struct {
@@ -684,81 +708,9 @@ func Route(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("/udnie", filterToHandler(&StyleTransferFilter{BasicFilter{"Udnie styling", "filter.html", pages_templates}, "udnie"}))
 	mux.HandleFunc("/rain_princess", filterToHandler(&StyleTransferFilter{BasicFilter{"Rain princess styling", "filter.html", pages_templates}, "rain_princess"}))
 
-	mux.HandleFunc("/hilbert", func(w http.ResponseWriter, r *http.Request) {
-		filterName := "Hilbert curve"
-		if r.Method == "POST" {
-			r.ParseForm()
-			if !r.PostForm.Has("url") {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, "'url' is not provided")
-				return
-			}
-			imageUrl := r.PostFormValue("url")
-			imageFilename, imid, err := load_image(imageUrl)
-			if err != nil {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
-				return
-			}
-			im, err := loadImageFile(imageFilename)
-			if err != nil {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
-				return
-			}
-			image_file, err := hilbert_curve(im, imid)
-			ff := FilterPageData{
-				FilterName: filterName,
-			}
-			if err != nil {
-				ff.Message = fmt.Sprintf("Error occured:\n%q", err)
-			} else {
-				ff.Message = fmt.Sprintf("Processed image %q", imageUrl)
-				ff.ImageFile = &image_file
-				// TODO: add timing
-			}
-			renderTemplateOrPanic(pages_templates, w, "filter.html", ff)
-		} else {
-			renderFilterPage(pages_templates, w, "filter.html", filterName, "")
-		}
-	})
+	mux.HandleFunc("/hilbert", filterToHandler(&HilbertFilter{BasicFilter{"Hilbert curve", "filter.html", pages_templates}}))
 
-	mux.HandleFunc("/hilbertdarken", func(w http.ResponseWriter, r *http.Request) {
-		filterName := "Hilbert curve darken"
-		if r.Method == "POST" {
-			r.ParseForm()
-			if !r.PostForm.Has("url") {
-				renderTemplateOrPanic(pages_templates, w, "filter.html", FilterPageData{
-					filterName,
-					"'url' is not provided",
-					nil,
-				})
-				return
-			}
-			imageUrl := r.PostFormValue("url")
-			imageFilename, imid, err := load_image(imageUrl)
-			if err != nil {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
-				return
-			}
-			im, err := loadImageFile(imageFilename)
-			if err != nil {
-				renderFilterPage(pages_templates, w, "filter.html", filterName, fmt.Sprintf("Error loading image:\n%q", err))
-				return
-			}
-			image_file, err := hilbert_darken(im, imid)
-			ff := FilterPageData{
-				FilterName: filterName,
-			}
-			if err != nil {
-				ff.Message = fmt.Sprintf("Error occured:\n%q", err)
-			} else {
-				ff.Message = fmt.Sprintf("Processed image %q", imageUrl)
-				ff.ImageFile = &image_file
-				// TODO: add timing
-			}
-			renderTemplateOrPanic(pages_templates, w, "filter.html", ff)
-		} else {
-			renderFilterPage(pages_templates, w, "filter.html", filterName, "")
-		}
-	})
+	mux.HandleFunc("/hilbertdarken", filterToHandler(&HilbertFilter{BasicFilter{"Hilbert curve darken", "filter.html", pages_templates}}))
 
 	mux.HandleFunc("/shader", filterToHandler(&ShaderFilter{BasicFilter{"Shader", "shader.html", pages_templates}}))
 
