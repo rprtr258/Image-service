@@ -43,7 +43,12 @@ func load_image(url string) (res image.Image, imid string, err error) {
 	if err != nil {
 		return
 	}
-	f.Write(data)
+	if err = r.Body.Close(); err != nil {
+		return
+	}
+	if _, err = f.Write(data); err != nil {
+		return
+	}
 	ff, err := os.Open(image_filename)
 	if err != nil {
 		return
@@ -53,30 +58,27 @@ func load_image(url string) (res image.Image, imid string, err error) {
 		return
 	}
 	real_image_filename := fmt.Sprintf("img/%s.orig.%s", imid, format)
-	err = os.Rename(image_filename, real_image_filename)
-	if err != nil {
+	if err = os.Rename(image_filename, real_image_filename); err != nil {
 		return
 	}
 	return
 }
 
-func save_image(im image.Image, imid string) (string, error) {
-	filtered_filename := fmt.Sprintf("img/%s.res.png", imid)
+func save_image(im image.Image, imid string) (filtered_filename string, err error) {
+	filtered_filename = fmt.Sprintf("img/%s.res.png", imid)
 	f, err := os.Create(filtered_filename)
 	if err != nil {
-		return "", err
+		return
 	}
-	err = png.Encode(f, im)
-	if err != nil {
-		return "", err
+	if err = png.Encode(f, im); err != nil {
+		return
 	}
-	return filtered_filename, nil
+	return
 }
 
 // TODO: offload work to workers
 func apply_convolution(im image.Image, imid string, kernel [][]int) (filtered_filename string, err error) {
-	kernelHalfWidth := len(kernel) / 2
-	kernelHalfHeight := len(kernel) / 2
+	kernelHalfWidth, kernelHalfHeight := len(kernel)/2, len(kernel)/2
 	R := make([][][]int, im.Bounds().Dx())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		R[i] = make([][]int, im.Bounds().Dy())
@@ -122,8 +124,10 @@ func apply_convolution(im image.Image, imid string, kernel [][]int) (filtered_fi
 			}
 		}
 	}
-	filtered_im := image.NewRGBA(im.Bounds())
-	diff := kernelMax - kernelMin
+	var (
+		filtered_im *image.RGBA = image.NewRGBA(im.Bounds())
+		diff        int         = kernelMax - kernelMin
+	)
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			filtered_im.Set(i, j, color.RGBA{
@@ -141,24 +145,21 @@ func apply_convolution(im image.Image, imid string, kernel [][]int) (filtered_fi
 func transfer_style(imid string, style_name string) (res string, err error) {
 	res = fmt.Sprintf("img/%s.res.png", imid)
 	os.Chdir("fast-style-transfer/")
-	err = exec.Command(
+	if err = exec.Command(
 		"python3", "evaluate.py",
 		"--in-path", fmt.Sprintf("../%s", res),
 		"--out-path", "../",
 		"--checkpoint", fmt.Sprintf("../ckpts/%s.ckpt", style_name),
-	).Run()
-	if err != nil {
+	).Run(); err != nil {
 		err = fmt.Errorf("error running python3 evaluate.py, error: %q", err)
 		return
 	}
 	os.Chdir("..")
-	err = exec.Command("mv", fmt.Sprintf("%s.orig.png", imid), res).Run()
-	if err != nil {
+	if err = exec.Command("mv", fmt.Sprintf("%s.orig.png", imid), res).Run(); err != nil {
 		err = fmt.Errorf("error running mv, error: %q", err)
 		return
 	}
-	err = exec.Command("rm", res).Run()
-	if err != nil {
+	if err = exec.Command("rm", res).Run(); err != nil {
 		err = fmt.Errorf("error running rm, error: %q", err)
 		return
 	}
@@ -166,22 +167,23 @@ func transfer_style(imid string, style_name string) (res string, err error) {
 }
 
 func renderTemplateOrPanic(rootTemplate *template.Template, w io.Writer, name string, data interface{}) {
-	err := rootTemplate.ExecuteTemplate(w, name, data)
-	if err != nil {
+	if err := rootTemplate.ExecuteTemplate(w, name, data); err != nil {
 		log.Fatalf("Error rendering template: name=%q data=%v err=%q", name, data, err)
 	}
 }
 
-type convolutionFilter struct {
-	pages_templates *template.Template
-	filterName      string
-	kernel          [][]int
-}
-type FilterPageData struct {
-	FilterName string
-	Message    string
-	ImageFile  *string
-}
+type (
+	convolutionFilter struct {
+		pages_templates *template.Template
+		filterName      string
+		kernel          [][]int
+	}
+	FilterPageData struct {
+		FilterName string
+		Message    string
+		ImageFile  *string
+	}
+)
 
 func (f *convolutionFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
@@ -331,12 +333,13 @@ func hilbert_curve_filter(im image.Image) image.Image {
 	// TODO: speedup/fix
 	for next := range ch {
 		// TODO: draw (last -> next) line with black color using https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%91%D1%80%D0%B5%D0%B7%D0%B5%D0%BD%D1%85%D1%8D%D0%BC%D0%B0
-		const K = 10
-		dx := (next.X - last.X) / K
-		dy := (next.Y - last.Y) / K
-		for i := 0; i < K; i++ {
-			himage.Set(last.X+dx*i, last.Y+dy*i, color.RGBA{0, 0, 0, 255})
-		}
+		himage.Set(last.X, last.Y, color.RGBA{0, 0, 0, 255})
+		// const K = 10
+		// dx := (next.X - last.X) / K
+		// dy := (next.Y - last.Y) / K
+		// for i := 0; i < K; i++ {
+		// 	himage.Set(last.X+dx*i, last.Y+dy*i, color.RGBA{0, 0, 0, 255})
+		// }
 		last = next
 	}
 	return himage
@@ -349,6 +352,7 @@ func hilbert_curve(im image.Image, imid string) (string, error) {
 
 func hilbert_darken(im image.Image, imid string) (string, error) {
 	tmp := hilbert_curve_filter(im)
+	// TODO: uncomment
 	// for i := tmp.Bounds().Min.X; i < tmp.Bounds().Max.X; i++ {
 	// 	for j := tmp.Bounds().Min.Y; j < tmp.Bounds().Max.y; j++ {
 	// 		for k := 0; k < 3; k++ {
@@ -518,15 +522,15 @@ func Route(w http.ResponseWriter, r *http.Request) {
 		filterName := "Cluster"
 		if r.Method == "POST" {
 			r.ParseForm()
-			if !r.PostForm.Has("url") {
+			switch {
+			case !r.PostForm.Has("url"):
 				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
 					filterName,
 					"'url' is not provided",
 					nil,
 				})
 				return
-			}
-			if !r.PostForm.Has("n") {
+			case !r.PostForm.Has("n"):
 				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
 					filterName,
 					"'n' (number of clusters) is not provided",
@@ -535,15 +539,15 @@ func Route(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			n_clusters, err := strconv.Atoi(r.PostFormValue("n"))
-			if err != nil {
+			switch {
+			case err != nil:
 				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
 					filterName,
 					fmt.Sprintf("Error in parameter 'n':\n%q", err),
 					nil,
 				})
 				return
-			}
-			if n_clusters < 2 {
+			case n_clusters < 2:
 				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
 					filterName,
 					fmt.Sprintf("'n' must be at least 2, you gave n=%d", n_clusters),
