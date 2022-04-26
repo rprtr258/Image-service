@@ -41,6 +41,7 @@ form {
 
         </div>
         <input class="button" type="submit">
+        <p style="padding-left: 30pt; color: red;">{{.Message}}</p>
     </form>
 </span>
 <span style="padding-left: 30pt; color: white;">
@@ -137,8 +138,5 @@ void main() {<br>
 
 </span>
 </div>
-    <p>
-        {{.Message}}
-    </p>
-    <img src="{ image_file }">
+    {{if .ImageFile}}<img src="{{.ImageFile}}">{{end}}
 {{template "AfterBody"}}

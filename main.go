@@ -220,6 +220,10 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				return
 			}
 			imageUrl := r.PostFormValue("url")
+            if imageUrl == "" {
+				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, "'url' is not provided")
+				return
+            }
 			if err := f.validate(r.PostForm); err != nil {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error in request params:\n%q", err))
 				return
@@ -491,6 +495,24 @@ func hilbert_darken(im image.Image, imid string) (string, error) {
 	return save_image(tmp, imid)
 }
 
+type ShaderFilter struct {
+    BasicFilter
+}
+
+func (f *ShaderFilter) validate(form url.Values) error {
+    if !form.Has("fragment_shader_source") {
+        return fmt.Errorf("'fragment_shader_source' is not provided")
+    }
+    //fragment_shader_source := r.PostFormValue("fragment_shader_source")
+    // TODO: compile shader and return any errors
+    return nil
+}
+
+func (f *ShaderFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
+    fragment_shader_source := form.Get("fragment_shader_source")
+    return shader_filter(imageId, fragment_shader_source)
+}
+
 func shader_filter(imid, fragment_shader_source string) (string, error) {
 	return "", fmt.Errorf("Not implemented")
 }
@@ -738,54 +760,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	mux.HandleFunc("/shader", func(w http.ResponseWriter, r *http.Request) {
-		filterName := "Shader"
-		if r.Method == "POST" {
-			r.ParseForm()
-			if !r.PostForm.Has("url") {
-				renderTemplateOrPanic(pages_templates, w, "shader.html", FilterPageData{
-					filterName,
-					"'url' is not provided",
-					nil,
-				})
-				return
-			}
-			if !r.PostForm.Has("url") {
-				renderTemplateOrPanic(pages_templates, w, "shader.html", FilterPageData{
-					filterName,
-					"'fragment_shader_source' is not provided",
-					nil,
-				})
-				return
-			}
-			imageUrl := r.PostFormValue("url")
-			fragment_shader_source := r.PostFormValue("fragment_shader_source")
-			_, imid, err := load_image(imageUrl)
-
-			if err != nil {
-				renderTemplateOrPanic(pages_templates, w, "shader.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error occured:\n%q", err),
-					nil,
-				})
-				return
-			}
-			image_file, err := shader_filter(imid, fragment_shader_source)
-			ff := FilterPageData{
-				FilterName: filterName,
-			}
-			if err != nil {
-				ff.Message = fmt.Sprintf("Error occured:\n%q", err)
-			} else {
-				ff.Message = fmt.Sprintf("Processed image %q", imageUrl)
-				ff.ImageFile = &image_file
-				// TODO: add timing
-			}
-			renderTemplateOrPanic(pages_templates, w, "shader.html", ff)
-		} else {
-			renderFilterPage(pages_templates, w, "shader.html", filterName, "")
-		}
-	})
+	mux.HandleFunc("/shader", filterToHandler(&ShaderFilter{BasicFilter{"Shader", "shader.html", pages_templates}}))
 
 	mux.ServeHTTP(w, r)
 }
