@@ -13,6 +13,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+    "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -205,10 +206,10 @@ type Filter interface {
 	filterName() string
 	templateName() string
 	pages_templates() *template.Template
-	process(imageFilename string, imageId string) (string, error)
+	validate(url.Values) error
+	process(imageFilename string, imageId string, form url.Values) (string, error)
 }
 
-// TODO: rename to ServeHTTP
 func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filterName := f.filterName()
@@ -219,13 +220,16 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				return
 			}
 			imageUrl := r.PostFormValue("url")
+			if err := f.validate(r.PostForm); err != nil {
+				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error in request params:\n%q", err))
+				return
+			}
 			sourceImageFilename, imid, err := load_image(imageUrl)
-
 			if err != nil {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return
 			}
-			image_file, err := f.process(sourceImageFilename, imid)
+			image_file, err := f.process(sourceImageFilename, imid, r.PostForm)
 			ff := FilterPageData{
 				FilterName: filterName,
 			}
@@ -261,12 +265,16 @@ func (f *BasicFilter) pages_templates() *template.Template {
 	return f._pages_templates
 }
 
+func (f *BasicFilter) validate(url.Values) error {
+    return nil
+}
+
 type convolutionFilter struct {
 	BasicFilter
 	kernel [][]int
 }
 
-func (f *convolutionFilter) process(imageFilename string, imageId string) (string, error) {
+func (f *convolutionFilter) process(imageFilename string, imageId string, _ url.Values) (string, error) {
 	im, err := loadImageFile(imageFilename)
 	if err != nil {
 		return "", fmt.Errorf("Error occured during loading image:\n%q", err)
@@ -280,8 +288,116 @@ type StyleTransferFilter struct {
 }
 
 // TODO: change to much faster network / remove
-func (f *StyleTransferFilter) process(imageFilename string, imageId string) (string, error) {
+func (f *StyleTransferFilter) process(imageFilename string, imageId string, _ url.Values) (string, error) {
 	return transfer_style(imageId, f.styleName)
+}
+
+type KMeansFilter struct {
+    BasicFilter
+}
+
+func (f KMeansFilter) validate(form url.Values) error {
+    if !form.Has("n") {
+        return fmt.Errorf("'n' (number of clusters) is not provided")
+    }
+    n_clusters, err := strconv.Atoi(form.Get("n"))
+    switch {
+    case err != nil:
+        return fmt.Errorf("Error parsing parameter 'n':\n%q", err)
+    case n_clusters < 2:
+        return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
+    }
+    return nil
+}
+
+func (f KMeansFilter) process(imageFilename string, imageId string, form url.Values) (filtered_filename string, err error) {
+    n_clusters, _ := strconv.Atoi(form.Get("n"))
+    im, err := loadImageFile(imageFilename)
+    if err != nil {
+        err = fmt.Errorf("Error occured while loading image:\n%q", err)
+        return
+    }
+    X := make([][][]uint32, im.Bounds().Dx())
+    for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
+        X[i] = make([][]uint32, im.Bounds().Dy())
+        for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+            r, g, b, _ := im.At(i, j).RGBA()
+            X[i][j] = []uint32{r, g, b}
+        }
+    }
+    kmeans := make([][]uint32, n_clusters)
+    sumAndCount := make([][]uint32, n_clusters) // sum of Rs, Gs, Bs and count
+    rand.Seed(0)
+    for i := 0; i < n_clusters; i++ {
+        kmeans[i] = []uint32{
+            rand.Uint32() / 0x100,
+            rand.Uint32() / 0x100,
+            rand.Uint32() / 0x100,
+        }
+        sumAndCount[i] = make([]uint32, 4)
+    }
+    // TODO: optimize
+    for epoch := 0; epoch < 100; epoch++ { // TODO: or diff is small enough
+        for i := 0; i < n_clusters; i++ {
+            sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
+        }
+        for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
+            for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+                r, g, b, _ := im.At(i, j).RGBA()
+                minCluster := 0
+                minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
+                for k := 1; k < n_clusters; k++ {
+                    dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
+                    if dist < minDist {
+                        minCluster = k
+                        minDist = dist
+                    }
+                }
+                sumAndCount[minCluster][0] += r
+                sumAndCount[minCluster][1] += g
+                sumAndCount[minCluster][2] += b
+                sumAndCount[minCluster][3]++
+            }
+        }
+        for i := 0; i < n_clusters; i++ {
+            count := sumAndCount[i][3]
+            if count == 0 {
+                continue
+            }
+            kmeans[i][0], kmeans[i][1], kmeans[i][2] = sumAndCount[i][0]/count, sumAndCount[i][1]/count, sumAndCount[i][2]/count
+        }
+    }
+    filtered_im := image.NewRGBA(im.Bounds())
+    for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
+        for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+            r, g, b, _ := im.At(i, j).RGBA()
+            minCluster := 0
+            minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
+            for k := 1; k < n_clusters; k++ {
+                dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
+                if dist < minDist {
+                    minCluster = k
+                    minDist = dist
+                }
+            }
+            filtered_im.Set(i, j, color.RGBA{
+                uint8(kmeans[minCluster][0] / 0x100),
+                uint8(kmeans[minCluster][1] / 0x100),
+                uint8(kmeans[minCluster][2] / 0x100),
+                255,
+            })
+        }
+    }
+    filtered_filename = fmt.Sprintf("img/%s.res.png", imageId)
+    imageFile, err := os.Create(filtered_filename)
+    if err != nil {
+        return
+    }
+    err = png.Encode(imageFile, filtered_im)
+    if err != nil {
+        return
+    }
+    return
 }
 
 func is_block_black(p image.Point, blockWidth, blockHeight int, im image.Image) bool {
@@ -537,135 +653,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 	// TODO: draw lokot'
 	// TODO: fix overflows
 	// TODO: fix double POST???
-	mux.HandleFunc("/cluster", func(w http.ResponseWriter, r *http.Request) {
-		filterName := "Cluster"
-		if r.Method == "POST" {
-			r.ParseForm()
-			switch {
-			case !r.PostForm.Has("url"):
-				renderFilterPage(pages_templates, w, "cluster.html", filterName, "'url' is not provided")
-				return
-			case !r.PostForm.Has("n"):
-				renderFilterPage(pages_templates, w, "cluster.html", filterName, "'n' (number of clusters) is not provided")
-				return
-			}
-			n_clusters, err := strconv.Atoi(r.PostFormValue("n"))
-			switch {
-			case err != nil:
-				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("Error parsing parameter 'n':\n%q", err))
-				return
-			case n_clusters < 2:
-				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("'n' must be at least 2, you gave n=%d", n_clusters))
-				return
-			}
-			imageUrl := r.PostFormValue("url")
-			imageFilename, imid, err := load_image(imageUrl)
-			if err != nil {
-				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("Error occured while loading image:\n%q", err))
-				return
-			}
-			im, err := loadImageFile(imageFilename)
-			if err != nil {
-				renderFilterPage(pages_templates, w, "cluster.html", filterName, fmt.Sprintf("Error occured while loading image:\n%q", err))
-				return
-			}
-			X := make([][][]uint32, im.Bounds().Dx())
-			for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-				X[i] = make([][]uint32, im.Bounds().Dy())
-				for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-					r, g, b, _ := im.At(i, j).RGBA()
-					X[i][j] = []uint32{r, g, b}
-				}
-			}
-			kmeans := make([][]uint32, n_clusters)
-			sumAndCount := make([][]uint32, n_clusters) // sum of Rs, Gs, Bs and count
-			rand.Seed(0)
-			for i := 0; i < n_clusters; i++ {
-				kmeans[i] = []uint32{
-					rand.Uint32() / 0x100,
-					rand.Uint32() / 0x100,
-					rand.Uint32() / 0x100,
-				}
-				sumAndCount[i] = make([]uint32, 4)
-			}
-			// TODO: optimize
-			for epoch := 0; epoch < 100; epoch++ { // TODO: or diff is small enough
-				for i := 0; i < n_clusters; i++ {
-					sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
-				}
-				for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-					for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-						r, g, b, _ := im.At(i, j).RGBA()
-						minCluster := 0
-						minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
-						for k := 1; k < n_clusters; k++ {
-							dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
-							if dist < minDist {
-								minCluster = k
-								minDist = dist
-							}
-						}
-						sumAndCount[minCluster][0] += r
-						sumAndCount[minCluster][1] += g
-						sumAndCount[minCluster][2] += b
-						sumAndCount[minCluster][3]++
-					}
-				}
-				for i := 0; i < n_clusters; i++ {
-					count := sumAndCount[i][3]
-					if count == 0 {
-						continue
-					}
-					kmeans[i][0], kmeans[i][1], kmeans[i][2] = sumAndCount[i][0]/count, sumAndCount[i][1]/count, sumAndCount[i][2]/count
-				}
-			}
-			filtered_im := image.NewRGBA(im.Bounds())
-			for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-				for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-					r, g, b, _ := im.At(i, j).RGBA()
-					minCluster := 0
-					minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
-					for k := 1; k < n_clusters; k++ {
-						dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
-						if dist < minDist {
-							minCluster = k
-							minDist = dist
-						}
-					}
-					filtered_im.Set(i, j, color.RGBA{
-						uint8(kmeans[minCluster][0] / 0x100),
-						uint8(kmeans[minCluster][1] / 0x100),
-						uint8(kmeans[minCluster][2] / 0x100),
-						255,
-					})
-				}
-			}
-			filtered_filename := fmt.Sprintf("img/%s.res.png", imid)
-			f, err := os.Create(filtered_filename)
-			if err != nil {
-				renderTemplateOrPanic(pages_templates, w, "cluster.html", FilterPageData{
-					filterName,
-					fmt.Sprintf("Error occured:\n%q", err),
-					nil,
-				})
-				return
-			}
-			err = png.Encode(f, filtered_im)
-			ff := FilterPageData{
-				FilterName: filterName,
-			}
-			if err != nil {
-				ff.Message = fmt.Sprintf("Error occured:\n%q", err)
-			} else {
-				ff.Message = fmt.Sprintf("Processed image %q", imageUrl)
-				ff.ImageFile = &filtered_filename
-				// TODO: add timing
-			}
-			renderTemplateOrPanic(pages_templates, w, "cluster.html", ff)
-		} else {
-			renderFilterPage(pages_templates, w, "cluster.html", filterName, "")
-		}
-	})
+	mux.HandleFunc("/cluster", filterToHandler(&KMeansFilter{BasicFilter{"Cluster", "cluster.html", pages_templates}}))
 
 	mux.HandleFunc("/lamuse", filterToHandler(&StyleTransferFilter{BasicFilter{"La muse styling", "filter.html", pages_templates}, "la_muse"}))
 	mux.HandleFunc("/scream", filterToHandler(&StyleTransferFilter{BasicFilter{"Scream styling", "filter.html", pages_templates}, "scream"}))
