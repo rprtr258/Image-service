@@ -13,7 +13,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
-    "net/url"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -220,10 +220,10 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				return
 			}
 			imageUrl := r.PostFormValue("url")
-            if imageUrl == "" {
+			if imageUrl == "" {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, "'url' is not provided")
 				return
-            }
+			}
 			if err := f.validate(r.PostForm); err != nil {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error in request params:\n%q", err))
 				return
@@ -270,7 +270,7 @@ func (f *BasicFilter) pages_templates() *template.Template {
 }
 
 func (f *BasicFilter) validate(url.Values) error {
-    return nil
+	return nil
 }
 
 type convolutionFilter struct {
@@ -297,136 +297,266 @@ func (f *StyleTransferFilter) process(imageFilename string, imageId string, _ ur
 }
 
 type KMeansFilter struct {
-    BasicFilter
+	BasicFilter
 }
 
 func (f KMeansFilter) validate(form url.Values) error {
-    if !form.Has("n") {
-        return fmt.Errorf("'n' (number of clusters) is not provided")
-    }
-    n_clusters, err := strconv.Atoi(form.Get("n"))
-    switch {
-    case err != nil:
-        return fmt.Errorf("Error parsing parameter 'n':\n%q", err)
-    case n_clusters < 2:
-        return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
-    }
-    return nil
+	if !form.Has("n") {
+		return fmt.Errorf("'n' (number of clusters) is not provided")
+	}
+	n_clusters, err := strconv.Atoi(form.Get("n"))
+	switch {
+	case err != nil:
+		return fmt.Errorf("Error parsing parameter 'n':\n%q", err)
+	case n_clusters < 2:
+		return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
+	}
+	return nil
 }
 
 func (f KMeansFilter) process(imageFilename string, imageId string, form url.Values) (filtered_filename string, err error) {
-    n_clusters, _ := strconv.Atoi(form.Get("n"))
-    im, err := loadImageFile(imageFilename)
-    if err != nil {
-        err = fmt.Errorf("Error occured while loading image:\n%q", err)
-        return
-    }
-    kmeans := make([][]uint32, n_clusters)
-    sumAndCount := make([][]uint64, n_clusters) // sum of Rs, Gs, Bs and count
-    rand.Seed(0)
-    // TODO: init using https://en.wikipedia.org/wiki/K-means++
-    for i := 0; i < n_clusters; i++ {
-        kmeans[i] = []uint32{
-            rand.Uint32() / 0x10000,
-            rand.Uint32() / 0x10000,
-            rand.Uint32() / 0x10000,
-        }
-        sumAndCount[i] = make([]uint64, 4)
-    }
-    // TODO: optimize
-    for epoch := 0; epoch < 100; epoch++ { // TODO: or diff is small enough
-        for i := 0; i < n_clusters; i++ {
-            sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
-        }
-        // TODO: parallelize?
-        for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-            for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-                r, g, b, _ := im.At(i, j).RGBA()
-                minCluster := 0
-                minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
-                for k := 1; k < n_clusters; k++ {
-                    dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
-                    if dist < minDist {
-                        minCluster = k
-                        minDist = dist
-                    }
-                }
-                sumAndCount[minCluster][0] += uint64(r)
-                sumAndCount[minCluster][1] += uint64(g)
-                sumAndCount[minCluster][2] += uint64(b)
-                sumAndCount[minCluster][3]++
-            }
-        }
-        for i := 0; i < n_clusters; i++ {
-            count := sumAndCount[i][3]
-            if count == 0 {
-                continue
-            }
-            kmeans[i][0], kmeans[i][1], kmeans[i][2] = uint32(sumAndCount[i][0]/count), uint32(sumAndCount[i][1]/count), uint32(sumAndCount[i][2]/count)
-        }
-    }
-    filtered_im := image.NewRGBA(im.Bounds())
-    for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-        for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-            r, g, b, _ := im.At(i, j).RGBA()
-            minCluster := 0
-            minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
-            for k := 1; k < n_clusters; k++ {
-                dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
-                if dist < minDist {
-                    minCluster = k
-                    minDist = dist
-                }
-            }
-            filtered_im.Set(i, j, color.RGBA{
-                uint8(kmeans[minCluster][0] / 0x100),
-                uint8(kmeans[minCluster][1] / 0x100),
-                uint8(kmeans[minCluster][2] / 0x100),
-                255,
-            })
-        }
-    }
-    filtered_filename = fmt.Sprintf("img/%s.res.png", imageId)
-    imageFile, err := os.Create(filtered_filename)
-    if err != nil {
-        return
-    }
-    err = png.Encode(imageFile, filtered_im)
-    if err != nil {
-        return
-    }
-    return
+	n_clusters, _ := strconv.Atoi(form.Get("n"))
+	im, err := loadImageFile(imageFilename)
+	if err != nil {
+		err = fmt.Errorf("Error occured while loading image:\n%q", err)
+		return
+	}
+	kmeans := make([][]uint32, n_clusters)
+	sumAndCount := make([][]uint64, n_clusters) // sum of Rs, Gs, Bs and count
+	rand.Seed(0)
+	// TODO: init using https://en.wikipedia.org/wiki/K-means++
+	for i := 0; i < n_clusters; i++ {
+		kmeans[i] = []uint32{
+			rand.Uint32() / 0x10000,
+			rand.Uint32() / 0x10000,
+			rand.Uint32() / 0x10000,
+		}
+		sumAndCount[i] = make([]uint64, 4)
+	}
+	// TODO: optimize
+	for epoch := 0; epoch < 100; epoch++ { // TODO: or diff is small enough
+		for i := 0; i < n_clusters; i++ {
+			sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
+		}
+		// TODO: parallelize?
+		for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
+			for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+				r, g, b, _ := im.At(i, j).RGBA()
+				minCluster := 0
+				minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
+				for k := 1; k < n_clusters; k++ {
+					dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
+					if dist < minDist {
+						minCluster = k
+						minDist = dist
+					}
+				}
+				sumAndCount[minCluster][0] += uint64(r)
+				sumAndCount[minCluster][1] += uint64(g)
+				sumAndCount[minCluster][2] += uint64(b)
+				sumAndCount[minCluster][3]++
+			}
+		}
+		for i := 0; i < n_clusters; i++ {
+			count := sumAndCount[i][3]
+			if count == 0 {
+				continue
+			}
+			kmeans[i][0], kmeans[i][1], kmeans[i][2] = uint32(sumAndCount[i][0]/count), uint32(sumAndCount[i][1]/count), uint32(sumAndCount[i][2]/count)
+		}
+	}
+	filtered_im := image.NewRGBA(im.Bounds())
+	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
+		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+			r, g, b, _ := im.At(i, j).RGBA()
+			minCluster := 0
+			minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
+			for k := 1; k < n_clusters; k++ {
+				dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
+				if dist < minDist {
+					minCluster = k
+					minDist = dist
+				}
+			}
+			filtered_im.Set(i, j, color.RGBA{
+				uint8(kmeans[minCluster][0] / 0x100),
+				uint8(kmeans[minCluster][1] / 0x100),
+				uint8(kmeans[minCluster][2] / 0x100),
+				255,
+			})
+		}
+	}
+	filtered_filename = fmt.Sprintf("img/%s.res.png", imageId)
+	imageFile, err := os.Create(filtered_filename)
+	if err != nil {
+		return
+	}
+	err = png.Encode(imageFile, filtered_im)
+	if err != nil {
+		return
+	}
+	return
 }
 
-func is_block_black(p image.Point, blockWidth, blockHeight int, im image.Image) bool {
+func is_block_black(r image.Rectangle, im image.Image) bool {
 	brightnessSum := 0.0
-	for i := 0; i < blockWidth; i++ {
-		for j := 0; j < blockHeight; j++ {
-			r, g, b, _ := im.At(i+p.X*blockWidth, j+p.Y*blockHeight).RGBA()
+	for i := r.Min.X; i < r.Max.X; i++ {
+		for j := r.Min.Y; j < r.Max.Y; j++ {
+			r, g, b, _ := im.At(i, j).RGBA()
 			brightnessSum += float64(r+g+b) / 3 / 0xFFFF
 		}
 	}
 	THRESHOLD := 0.5
-	return brightnessSum < THRESHOLD*float64(blockWidth*blockHeight)
+	return brightnessSum < THRESHOLD*float64(r.Dx()*r.Dy())
 }
 
-func d2xy(n, d int) (int, int) {
-	t := d
-	x, y := 0, 0
-	for s := 1; s < n; s *= 2 {
-		rx := 1 & (t / 2)
-		ry := 1 & (t ^ rx)
-		if ry == 0 {
-			if rx == 1 {
-				x, y = n-1-x, n-1-y
-			}
-			x, y = y, x
-		}
-		x += s * rx
-		y += s * ry
-		t /= 4
+func rectFrom4Points(p1, p2, p3, p4 image.Point) image.Rectangle {
+	xmin, ymin, xmax, ymax := p1.X, p1.Y, p2.X, p2.Y
+	if xmin > p3.X {
+		xmin = p3.X
 	}
-	return x, y
+	if xmax < p3.X {
+		xmax = p3.X
+	}
+	if ymin > p3.Y {
+		ymin = p3.Y
+	}
+	if ymax < p3.Y {
+		ymax = p3.Y
+	}
+	if xmin > p4.X {
+		xmin = p4.X
+	}
+	if xmax < p4.X {
+		xmax = p4.X
+	}
+	if ymin > p4.Y {
+		ymin = p4.Y
+	}
+	if ymax < p4.Y {
+		ymax = p4.Y
+	}
+	return image.Rect(xmin, ymin, xmax, ymax)
+}
+
+func sgn(x int) int {
+    switch {
+    case x < 0:
+        return -1
+    case x == 0:
+        return 0
+    default:
+        return 1
+    }
+}
+
+func plotLineLow(im *image.RGBA, p, q image.Point) {
+	dx := q.X - p.X
+	dy := q.Y - p.Y
+	yi := sgn(dy)
+    dy *= yi
+	D := 2*dy - dx
+	y := p.Y
+	for x := p.X; x <= q.X; x++ {
+		im.Set(x, y, color.RGBA{0, 0, 0, 255})
+		if D > 0 {
+			y += yi
+			D += 2 * (dy - dx)
+		} else {
+			D += 2 * dy
+		}
+	}
+}
+
+func plotLineHigh(im *image.RGBA, p, q image.Point) {
+	dx := q.X - p.X
+	dy := q.Y - p.Y
+	xi := sgn(dx)
+    dx *= xi
+	D := 2*dx - dy
+	x := p.X
+	for y := p.Y; y <= q.Y; y++ {
+		im.Set(x, y, color.RGBA{0, 0, 0, 255})
+		if D > 0 {
+			x += xi
+			D += 2 * (dx - dy)
+		} else {
+			D += 2 * dx
+		}
+	}
+}
+
+func abs(x int) int {
+    if x < 0 {
+        return -x
+    } else {
+        return x
+    }
+}
+
+func drawLine(im *image.RGBA, p, q image.Point) {
+    if p == q {
+        return
+    }
+	if abs(q.Y-p.Y) < abs(q.X-p.X) {
+		if p.X > q.X {
+			p, q = q, p
+		}
+		plotLineLow(im, p, q)
+	} else {
+		if p.Y > q.Y {
+			p, q = q, p
+		}
+		plotLineHigh(im, p, q)
+	}
+}
+
+// TODO: pass 1st point and vectors 1->2, 2->3, instead of p1-4
+// TODO: pass log2(size) instead of size
+func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 image.Point, size int) []image.Point {
+	if size <= 2 {
+		if is_block_black(rectFrom4Points(p1, p2, p3, p4), sourceImage) {
+            drawLine(resultImage, p1, p4)
+			return []image.Point{p1, p4}
+		} else {
+			return nil
+		}
+	}
+	// . 1       4
+	// | |1-2 3-4|
+	// | | a| |d |
+	// | |4-3 2-1|
+	// v ||  p  ||
+	// p |1 4-1 4|
+	// 1 ||b| |c||
+	// 2 |2-3 2-3|
+	// h 2-------3
+	//   .--->p23h
+	p12h := p2.Sub(p1).Div(2)
+	p23h := p3.Sub(p2).Div(2)
+	lt := hilbert(sourceImage, resultImage, p1, p1.Add(p23h), p1.Add(p23h).Add(p12h), p1.Add(p12h), size/2)
+	lb := hilbert(sourceImage, resultImage, p2.Sub(p12h), p2, p2.Add(p23h), p2.Add(p23h).Sub(p12h), size/2)
+	rb := hilbert(sourceImage, resultImage, p3.Sub(p12h).Sub(p23h), p3.Sub(p23h), p3, p3.Sub(p12h), size/2)
+	rt := hilbert(sourceImage, resultImage, p4.Add(p12h), p4.Add(p12h).Sub(p23h), p4.Sub(p23h), p4, size/2)
+	if lt == nil && lb == nil && rb == nil && rt == nil && !is_block_black(rectFrom4Points(p1, p2, p3, p4), sourceImage) {
+		return nil
+	}
+	if lt == nil {
+		lt = []image.Point{p1, p1}
+	}
+	if lb == nil {
+		lb = []image.Point{p2, p2}
+	}
+	if rb == nil {
+		rb = []image.Point{p3, p3}
+	}
+	if rt == nil {
+		rt = []image.Point{p4, p4}
+	}
+	drawLine(resultImage, lt[1], lb[0])
+	drawLine(resultImage, lb[1], rb[0])
+	drawLine(resultImage, rb[1], rt[0])
+	return []image.Point{p1, p4}
 }
 
 // TODO: try also https://en.wikipedia.org/wiki/Z-order_curve
@@ -439,33 +569,9 @@ func hilbert_curve_filter(im image.Image) image.Image {
 		W *= 2
 	}
 	W /= 2
-	blockWidth, blockHeight := im.Bounds().Dx()/W, im.Bounds().Dy()/W // TODO: check blocks more precisely???, check article
 	himage := image.NewRGBA(im.Bounds())
 	draw.Draw(himage, himage.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
-
-	ch := make(chan image.Point)
-	go func() {
-		for i := 0; i < W*W; i++ {
-			x, y := d2xy(W, i)
-			if is_block_black(image.Point{x, y}, blockWidth, blockHeight, im) {
-				ch <- image.Point{x * blockWidth, y * blockHeight} // TODO: fix
-			}
-		}
-		close(ch)
-	}()
-	last := <-ch
-	// TODO: speedup/fix
-	for next := range ch {
-		// TODO: draw (last -> next) line with black color using https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%91%D1%80%D0%B5%D0%B7%D0%B5%D0%BD%D1%85%D1%8D%D0%BC%D0%B0
-		himage.Set(last.X, last.Y, color.RGBA{0, 0, 0, 255})
-		// const K = 10
-		// dx := (next.X - last.X) / K
-		// dy := (next.Y - last.Y) / K
-		// for i := 0; i < K; i++ {
-		// 	himage.Set(last.X+dx*i, last.Y+dy*i, color.RGBA{0, 0, 0, 255})
-		// }
-		last = next
-	}
+	hilbert(im, himage, image.Point{im.Bounds().Min.X, im.Bounds().Max.Y}, im.Bounds().Min, image.Point{im.Bounds().Max.X, im.Bounds().Min.Y}, im.Bounds().Max, W)
 	return himage
 }
 
@@ -475,15 +581,15 @@ func hilbert_curve(im image.Image, imid string) (string, error) {
 }
 
 type HilbertFilter struct {
-    BasicFilter
+	BasicFilter
 }
 
 func (f *HilbertFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-    im, err := loadImageFile(imageFilename)
-    if err != nil {
-        return "", err
-    }
-    return hilbert_curve(im, imageId)
+	im, err := loadImageFile(imageFilename)
+	if err != nil {
+		return "", err
+	}
+	return hilbert_curve(im, imageId)
 }
 
 func hilbert_darken(im image.Image, imid string) (string, error) {
@@ -502,33 +608,33 @@ func hilbert_darken(im image.Image, imid string) (string, error) {
 }
 
 type HilbertDarkenFilter struct {
-    BasicFilter
+	BasicFilter
 }
 
 func (f *HilbertDarkenFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-    im, err := loadImageFile(imageFilename)
-    if err != nil {
-        return "", err
-    }
-    return hilbert_darken(im, imageId)
+	im, err := loadImageFile(imageFilename)
+	if err != nil {
+		return "", err
+	}
+	return hilbert_darken(im, imageId)
 }
 
 type ShaderFilter struct {
-    BasicFilter
+	BasicFilter
 }
 
 func (f *ShaderFilter) validate(form url.Values) error {
-    if !form.Has("fragment_shader_source") {
-        return fmt.Errorf("'fragment_shader_source' is not provided")
-    }
-    //fragment_shader_source := r.PostFormValue("fragment_shader_source")
-    // TODO: compile shader and return any errors
-    return nil
+	if !form.Has("fragment_shader_source") {
+		return fmt.Errorf("'fragment_shader_source' is not provided")
+	}
+	//fragment_shader_source := r.PostFormValue("fragment_shader_source")
+	// TODO: compile shader and return any errors
+	return nil
 }
 
 func (f *ShaderFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-    fragment_shader_source := form.Get("fragment_shader_source")
-    return shader_filter(imageId, fragment_shader_source)
+	fragment_shader_source := form.Get("fragment_shader_source")
+	return shader_filter(imageId, fragment_shader_source)
 }
 
 func shader_filter(imid, fragment_shader_source string) (string, error) {
