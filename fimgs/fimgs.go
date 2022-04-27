@@ -110,24 +110,15 @@ func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename stri
 }
 
 // TODO: don't call bash?
-func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) (res string, err error) {
+func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) (err error) {
 	os.Chdir("fast-style-transfer/")
 	if err = exec.Command(
 		"python3", "evaluate.py",
-        "--in-path", fmt.Sprintf("../%s", res), // TODO: path.join
-		"--out-path", "../",
+        "--in-path", sourceImageFilename,
+		"--out-path", resultImageFilename,
 		"--checkpoint", fmt.Sprintf("../ckpts/%s.ckpt", style_name),
 	).Run(); err != nil {
 		err = fmt.Errorf("error running python3 evaluate.py, error: %q", err)
-		return
-	}
-	os.Chdir("..")
-	if err = exec.Command("mv", sourceImageFilename, res).Run(); err != nil {
-		err = fmt.Errorf("error running mv, error: %q", err)
-		return
-	}
-	if err = exec.Command("rm", res).Run(); err != nil {
-		err = fmt.Errorf("error running rm, error: %q", err)
 		return
 	}
 	return

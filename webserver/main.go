@@ -21,10 +21,6 @@ func get_next_filename() string {
 	return fmt.Sprintf("%v", time.Now())
 }
 
-func imageIdToResultImageFilename(imageId string) string {
-    return fmt.Sprintf("img/%s.res.png", imageId)
-}
-
 // TODO: rewrite paths to paths.join
 // TODO: check if it is actually image, restrict size
 func load_image(url string) (res string, imid string, err error) {
@@ -93,7 +89,7 @@ type Filter interface {
 	templateName() string
 	pages_templates() *template.Template
 	validate(url.Values) error
-	process(imageFilename string, imageId string, form url.Values) (string, error)
+	process(sourceImageFilename, resultImageFilename string, form url.Values) error
 }
 
 func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
@@ -114,12 +110,13 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error in request params:\n%q", err))
 				return
 			}
-			sourceImageFilename, imid, err := load_image(imageUrl)
+			sourceImageFilename, imageId, err := load_image(imageUrl)
 			if err != nil {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return
 			}
-			image_file, err := f.process(sourceImageFilename, imid, r.PostForm)
+            resultImageFile := fmt.Sprintf("img/%s.res.png", imageId)
+			err = f.process(sourceImageFilename, resultImageFile, r.PostForm)
 			ff := FilterPageData{
 				FilterName: filterName,
 			}
@@ -127,7 +124,7 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				ff.Message = fmt.Sprintf("Error occured:\n%q", err)
 			} else {
 				ff.Message = fmt.Sprintf("Processed image %q", imageUrl)
-				ff.ImageFile = &image_file
+				ff.ImageFile = &resultImageFile
 				// TODO: add timing
 			}
 			renderTemplateOrPanic(f.pages_templates(), w, f.templateName(), ff)
@@ -164,12 +161,8 @@ type convolutionFilter struct {
 	kernel [][]int
 }
 
-func (f *convolutionFilter) process(imageFilename string, imageId string, _ url.Values) (string, error) {
-    res := imageIdToResultImageFilename(imageId)
-    if err := fimgs.ApplyConvolutionFilter(imageFilename, res, f.kernel); err != nil {
-        return "", nil
-    }
-    return res, nil
+func (f *convolutionFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+    return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, f.kernel)
 }
 
 type StyleTransferFilter struct {
@@ -178,14 +171,15 @@ type StyleTransferFilter struct {
 }
 
 // TODO: change to much faster network / remove
-func (f *StyleTransferFilter) process(imageFilename string, imageId string, _ url.Values) (string, error) {
-	return fimgs.TransferStyle(imageFilename, imageIdToResultImageFilename(imageId), f.styleName)
+func (f *StyleTransferFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+	return fimgs.TransferStyle(sourceImageFilename, resultImageFilename, f.styleName)
 }
 
 type KMeansFilter struct {
 	BasicFilter
 }
 
+// TODO: validation is done two times, how to reduce?
 func (f KMeansFilter) validate(form url.Values) error {
 	if !form.Has("n") {
 		return fmt.Errorf("'n' (number of clusters) is not provided")
@@ -200,43 +194,32 @@ func (f KMeansFilter) validate(form url.Values) error {
 	return nil
 }
 
-func (f KMeansFilter) process(imageFilename string, imageId string, form url.Values) (filtered_filename string, err error) {
+func (f KMeansFilter) process(sourceImageFilename, resultImageFilename string, form url.Values) error {
 	n_clusters, _ := strconv.Atoi(form.Get("n"))
-    resultImageFilename := imageIdToResultImageFilename(imageId)
-    if err := fimgs.ApplyKMeansFilter(imageFilename, resultImageFilename, n_clusters); err != nil {
-        return "", err
-    }
-    return resultImageFilename, nil
+    return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters)
 }
 
 type HilbertFilter struct {
 	BasicFilter
 }
 
-func (f *HilbertFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-    resultImageFilename := imageIdToResultImageFilename(imageId)
-    if err := fimgs.HilbertCurve(imageFilename, resultImageFilename); err != nil {
-        return "", err
-    }
-    return resultImageFilename, nil
+func (f *HilbertFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+    return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
 }
 
 type HilbertDarkenFilter struct {
 	BasicFilter
 }
 
-func (f *HilbertDarkenFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-    resultImageFilename := imageIdToResultImageFilename(imageId)
-    if err := fimgs.HilbertDarken(imageFilename, resultImageFilename); err != nil {
-        return "", err
-    }
-    return resultImageFilename, nil
+func (f *HilbertDarkenFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+    return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
 }
 
 type ShaderFilter struct {
 	BasicFilter
 }
 
+// TODO: validation is done 2 times also
 func (f *ShaderFilter) validate(form url.Values) error {
 	if !form.Has("fragment_shader_source") {
 		return fmt.Errorf("'fragment_shader_source' is not provided")
@@ -246,13 +229,9 @@ func (f *ShaderFilter) validate(form url.Values) error {
 	return nil
 }
 
-func (f *ShaderFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
+func (f *ShaderFilter) process(sourceImageFilename, resultImageFilename string, form url.Values) error {
 	fragment_shader_source := form.Get("fragment_shader_source")
-    resultImageFilename := imageIdToResultImageFilename(imageId)
-    if err := fimgs.ShaderFilter(imageFilename, resultImageFilename, fragment_shader_source); err != nil {
-        return "", err
-    }
-    return resultImageFilename, nil
+    return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source)
 }
 
 // TODO: log incoming requests in web server thoroughly, log request params, log result, timing
