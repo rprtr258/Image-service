@@ -415,7 +415,7 @@ func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 im
 }
 
 // TODO: try also https://en.wikipedia.org/wiki/Z-order_curve
-func HilbertCurveFilter(im image.Image) image.Image {
+func HilbertCurveFilter(im image.Image) *image.RGBA {
 	// TODO: remove / change to absolute adjustment
 	// f = ImageEnhance.Brightness(res).enhance(1.3)
 	// f = ImageEnhance.Contrast(f).enhance(10)
@@ -445,16 +445,14 @@ func HilbertDarken(sourceImageFilename, resultImageFilename string) error {
 		return err
 	}
 	tmp := HilbertCurveFilter(im)
-	// TODO: uncomment
-	// for i := tmp.Bounds().Min.X; i < tmp.Bounds().Max.X; i++ {
-	// 	for j := tmp.Bounds().Min.Y; j < tmp.Bounds().Max.y; j++ {
-	// 		for k := 0; k < 3; k++ {
-	// 			if im.At(i, j)[k] < tmp.At(i, j)[k] {
-	// 				tmp.At(i, j)[k] = im.At(i, j)[k]
-	// 			}
-	// 		}
-	// 	}
-	// }
+	for i := tmp.Bounds().Min.X; i < tmp.Bounds().Max.X; i++ {
+		for j := tmp.Bounds().Min.Y; j < tmp.Bounds().Max.Y; j++ {
+            r, g, b, _ := tmp.At(i, j).RGBA()
+            if r > 0 || g > 0 || b > 0 {
+                tmp.Set(i, j, im.At(i, j))
+            }
+		}
+	}
 	return save_image(tmp, resultImageFilename)
 }
 

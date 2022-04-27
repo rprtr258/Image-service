@@ -3,27 +3,36 @@ package main
 import (
 	"fmt"
     "os"
+    "strconv"
 
     "github.com/rprtr258/fimgs"
 )
 
+func handleProcessingError(err error) {
+    fmt.Fprintf(os.Stderr, "Error: %q\n", err)
+    os.Exit(1)
+}
+
+func makeResultFilename(filename string) string {
+    return fmt.Sprintf("%s.fimgs.png", filename)
+}
+
 func convolutionFilter(kernel [][]int) {
     if len(os.Args) != 3 {
-        fmt.Println("Usage: ")
+        fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
         os.Exit(1)
     }
     sourceImageFilename := os.Args[2]
-    resultImageFilename := fmt.Sprintf("%s.fimgs.png", sourceImageFilename)
+    resultImageFilename := makeResultFilename(sourceImageFilename)
     err := fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, kernel)
     if err != nil {
-        fmt.Printf("Error: %q\n", err)
-        os.Exit(1)
+        handleProcessingError(err)
     }
 }
 
 func main() {
     if len(os.Args) == 1 {
-        fmt.Println("Usage: ") // TODO: usage
+        fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
         os.Exit(1)
     }
     switch os.Args[1] {
@@ -46,7 +55,20 @@ func main() {
         case "verticallines":
             convolutionFilter(fimgs.VERTICAL_LINES_KERNEL)
         case "cluster":
-            //KMeansFilter()
+            if len(os.Args) != 4 {
+                fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
+                os.Exit(1)
+            }
+            n_clusters, err := strconv.Atoi(os.Args[2])
+            if err != nil {
+                fmt.Fprintf(os.Stderr, "Wrong clusters number: %q", os.Args[2])
+                os.Exit(1)
+            }
+            sourceImageFilename := os.Args[3]
+            resultImageFilename := makeResultFilename(sourceImageFilename)
+            if err := fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters); err != nil {
+                handleProcessingError(err)
+            }
         // "lamuse"        "la_muse"
         // "scream"        "scream"
         // "wave"          "wave"
@@ -54,10 +76,35 @@ func main() {
         // "udnie"         "udnie"
         // "rain_princess" "rain_princess"
         case "hilbert":
-            //HilbertFilter
+            if len(os.Args) != 3 {
+                fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
+                os.Exit(1)
+            }
+            sourceImageFilename := os.Args[2]
+            resultImageFilename := makeResultFilename(sourceImageFilename)
+            if err := fimgs.HilbertCurve(sourceImageFilename, resultImageFilename); err != nil {
+                handleProcessingError(err)
+            }
         case "hilbertdarken":
-            //HilbertDarkenFilter
+            if len(os.Args) != 3 {
+                fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
+                os.Exit(1)
+            }
+            sourceImageFilename := os.Args[2]
+            resultImageFilename := makeResultFilename(sourceImageFilename)
+            if err := fimgs.HilbertDarken(sourceImageFilename, resultImageFilename); err != nil {
+                handleProcessingError(err)
+            }
         case "shader":
-            //ShaderFilter
+            if len(os.Args) != 4 {
+                fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
+                os.Exit(1)
+            }
+            fragmentShaderSource := os.Args[2]
+            sourceImageFilename := os.Args[3]
+            resultImageFilename := makeResultFilename(sourceImageFilename)
+            if err := fimgs. ShaderFilter(sourceImageFilename, resultImageFilename, fragmentShaderSource); err != nil {
+                handleProcessingError(err)
+            }
 	}
 }
