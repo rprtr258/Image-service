@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-    "github.com/rprtr258/fimgs"
+	"github.com/rprtr258/fimgs"
 )
 
 // TODO: command line application
@@ -115,7 +115,7 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return
 			}
-            resultImageFile := fmt.Sprintf("img/%s.res.png", imageId)
+			resultImageFile := fmt.Sprintf("img/%s.res.png", imageId)
 			err = f.process(sourceImageFilename, resultImageFile, r.PostForm)
 			ff := FilterPageData{
 				FilterName: filterName,
@@ -162,7 +162,7 @@ type convolutionFilter struct {
 }
 
 func (f *convolutionFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-    return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, f.kernel)
+	return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, f.kernel)
 }
 
 type StyleTransferFilter struct {
@@ -196,7 +196,7 @@ func (f KMeansFilter) validate(form url.Values) error {
 
 func (f KMeansFilter) process(sourceImageFilename, resultImageFilename string, form url.Values) error {
 	n_clusters, _ := strconv.Atoi(form.Get("n"))
-    return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters)
+	return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters)
 }
 
 type HilbertFilter struct {
@@ -204,7 +204,7 @@ type HilbertFilter struct {
 }
 
 func (f *HilbertFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-    return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
+	return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
 }
 
 type HilbertDarkenFilter struct {
@@ -212,7 +212,7 @@ type HilbertDarkenFilter struct {
 }
 
 func (f *HilbertDarkenFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-    return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
+	return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
 }
 
 type ShaderFilter struct {
@@ -231,7 +231,7 @@ func (f *ShaderFilter) validate(form url.Values) error {
 
 func (f *ShaderFilter) process(sourceImageFilename, resultImageFilename string, form url.Values) error {
 	fragment_shader_source := form.Get("fragment_shader_source")
-    return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source)
+	return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source)
 }
 
 // TODO: log incoming requests in web server thoroughly, log request params, log result, timing
@@ -310,40 +310,40 @@ func Route(w http.ResponseWriter, r *http.Request) {
 
 	mux.HandleFunc("/blur", filterToHandler(&convolutionFilter{
 		BasicFilter{"Blur", "filter.html", pages_templates},
-        fimgs.BLUR_KERNEL,
+		fimgs.BLUR_KERNEL,
 	}))
 	mux.HandleFunc("/weakblur", filterToHandler(&convolutionFilter{
 		BasicFilter{"Weak blur", "filter.html", pages_templates},
-        fimgs.WEAK_BLUR_KERNEL,
+		fimgs.WEAK_BLUR_KERNEL,
 	}))
 	mux.HandleFunc("/emboss", filterToHandler(&convolutionFilter{
 		BasicFilter{"Emboss", "filter.html", pages_templates},
-        fimgs.EMBOSS_KERNEL,
+		fimgs.EMBOSS_KERNEL,
 	}))
 	mux.HandleFunc("/sharpen", filterToHandler(&convolutionFilter{
 		BasicFilter{"Sharpen", "filter.html", pages_templates},
-        fimgs.SHARPEN_KERNEL,
+		fimgs.SHARPEN_KERNEL,
 	}))
 	mux.HandleFunc("/edgeenhance", filterToHandler(&convolutionFilter{
 		BasicFilter{"Edge enhance", "filter.html", pages_templates},
-        fimgs.EDGE_ENHANCE_KERNEL,
+		fimgs.EDGE_ENHANCE_KERNEL,
 	}))
 	mux.HandleFunc("/edgedetect1", filterToHandler(&convolutionFilter{
 		BasicFilter{"Edge detect 1", "filter.html", pages_templates},
-        fimgs.EDGE_DETECT1_KERNEL,
+		fimgs.EDGE_DETECT1_KERNEL,
 	}))
 	mux.HandleFunc("/edgedetect2", filterToHandler(&convolutionFilter{
 		BasicFilter{"Edge detect 2", "filter.html", pages_templates},
-        fimgs.EDGE_DETECT2_KERNEL,
+		fimgs.EDGE_DETECT2_KERNEL,
 	}))
 	mux.HandleFunc("/horizontallines", filterToHandler(&convolutionFilter{
 		BasicFilter{"Horizontal lines", "filter.html", pages_templates},
-        fimgs.HORIZONTAL_LINES_KERNEL,
-    }))
+		fimgs.HORIZONTAL_LINES_KERNEL,
+	}))
 	mux.HandleFunc("/verticallines", filterToHandler(&convolutionFilter{
 		BasicFilter{"Vertical lines", "filter.html", pages_templates},
-        fimgs.VERTICAL_LINES_KERNEL,
-    }))
+		fimgs.VERTICAL_LINES_KERNEL,
+	}))
 
 	// TODO: draw lokot'
 	// TODO: fix double POST???
@@ -365,6 +365,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 	mux.ServeHTTP(w, r)
 }
 
+// TODO: load assets https://github.com/go-gl/example/blob/d71b0d9f823d97c3b5ac2a79fdcdb56ca1677eba/gl41core-cube/cube.go#L322
 func main() {
 	s := &http.Server{
 		Addr:           ":8080",

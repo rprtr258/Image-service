@@ -14,51 +14,51 @@ import (
 )
 
 var (
-    BLUR_KERNEL = [][]int{
-        {1, 1, 1},
-        {1, 1, 1},
-        {1, 1, 1},
-    }
-    WEAK_BLUR_KERNEL = [][]int{
-        {0, 1, 0},
-        {1, 1, 1},
-        {0, 1, 0},
-    }
-    EMBOSS_KERNEL = [][]int{
-        {-2, -1, 0},
-        {-1, 1, 1},
-        {0, 1, 2},
-    }
-    SHARPEN_KERNEL = [][]int{
-        {0, -1, 0},
-        {-1, 5, -1},
-        {0, -1, 0},
-    }
-    EDGE_ENHANCE_KERNEL = [][]int{
-        {0, 0, 0},
-        {-1, 1, 0},
-        {0, 0, 0},
-    }
-    EDGE_DETECT1_KERNEL = [][]int{
-        {1, 0, -1},
-        {0, 0, 0},
-        {-1, 0, 1},
-    }
-    EDGE_DETECT2_KERNEL = [][]int{
-        {0, -1, 0},
-        {-1, 4, -1},
-        {0, -1, 0},
-    }
-    HORIZONTAL_LINES_KERNEL = [][]int{
-        {-1, -1, -1},
-        {2, 2, 2},
-        {-1, -1, -1},
-    }
-    VERTICAL_LINES_KERNEL = [][]int{
-        {-1, 2, -1},
-        {-1, 2, -1},
-        {-1, 2, -1},
-    }
+	BLUR_KERNEL = [][]int{
+		{1, 1, 1},
+		{1, 1, 1},
+		{1, 1, 1},
+	}
+	WEAK_BLUR_KERNEL = [][]int{
+		{0, 1, 0},
+		{1, 1, 1},
+		{0, 1, 0},
+	}
+	EMBOSS_KERNEL = [][]int{
+		{-2, -1, 0},
+		{-1, 1, 1},
+		{0, 1, 2},
+	}
+	SHARPEN_KERNEL = [][]int{
+		{0, -1, 0},
+		{-1, 5, -1},
+		{0, -1, 0},
+	}
+	EDGE_ENHANCE_KERNEL = [][]int{
+		{0, 0, 0},
+		{-1, 1, 0},
+		{0, 0, 0},
+	}
+	EDGE_DETECT1_KERNEL = [][]int{
+		{1, 0, -1},
+		{0, 0, 0},
+		{-1, 0, 1},
+	}
+	EDGE_DETECT2_KERNEL = [][]int{
+		{0, -1, 0},
+		{-1, 4, -1},
+		{0, -1, 0},
+	}
+	HORIZONTAL_LINES_KERNEL = [][]int{
+		{-1, -1, -1},
+		{2, 2, 2},
+		{-1, -1, -1},
+	}
+	VERTICAL_LINES_KERNEL = [][]int{
+		{-1, 2, -1},
+		{-1, 2, -1},
+		{-1, 2, -1},
+	}
 )
 
 func LoadImageFile(image_filename string) (res image.Image, err error) {
@@ -66,6 +66,7 @@ func LoadImageFile(image_filename string) (res image.Image, err error) {
 	if err != nil {
 		return
 	}
+	defer ff.Close()
 	res, _, err = image.Decode(ff)
 	if err != nil {
 		return
@@ -78,6 +79,7 @@ func save_image(im image.Image, imageFilename string) (err error) {
 	if err != nil {
 		return
 	}
+	defer f.Close()
 	if err = png.Encode(f, im); err != nil {
 		return
 	}
@@ -145,7 +147,7 @@ func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 			})
 		}
 	}
-    return filtered_im
+	return filtered_im
 }
 
 func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename string, kernel [][]int) error {
@@ -153,7 +155,7 @@ func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename stri
 	if err != nil {
 		return fmt.Errorf("Error occured during loading image:\n%q", err)
 	}
-    resImage := ApplyConvolution(im, kernel)
+	resImage := ApplyConvolution(im, kernel)
 	return save_image(resImage, resultImageFilename)
 }
 
@@ -162,7 +164,7 @@ func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) 
 	os.Chdir("fast-style-transfer/")
 	if err = exec.Command(
 		"python3", "evaluate.py",
-        "--in-path", sourceImageFilename,
+		"--in-path", sourceImageFilename,
 		"--out-path", resultImageFilename,
 		"--checkpoint", fmt.Sprintf("../ckpts/%s.ckpt", style_name),
 	).Run(); err != nil {
@@ -245,10 +247,10 @@ func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, n
 			})
 		}
 	}
-    err = save_image(filtered_im, resultImageFilename)
-    if err != nil {
-        return
-    }
+	err = save_image(filtered_im, resultImageFilename)
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -294,21 +296,21 @@ func rectFrom4Points(p1, p2, p3, p4 image.Point) image.Rectangle {
 }
 
 func sgn(x int) int {
-    switch {
-    case x < 0:
-        return -1
-    case x == 0:
-        return 0
-    default:
-        return 1
-    }
+	switch {
+	case x < 0:
+		return -1
+	case x == 0:
+		return 0
+	default:
+		return 1
+	}
 }
 
 func plotLineLow(im *image.RGBA, p, q image.Point) {
 	dx := q.X - p.X
 	dy := q.Y - p.Y
 	yi := sgn(dy)
-    dy *= yi
+	dy *= yi
 	D := 2*dy - dx
 	y := p.Y
 	for x := p.X; x <= q.X; x++ {
@@ -326,7 +328,7 @@ func plotLineHigh(im *image.RGBA, p, q image.Point) {
 	dx := q.X - p.X
 	dy := q.Y - p.Y
 	xi := sgn(dx)
-    dx *= xi
+	dx *= xi
 	D := 2*dx - dy
 	x := p.X
 	for y := p.Y; y <= q.Y; y++ {
@@ -341,11 +343,11 @@ func plotLineHigh(im *image.RGBA, p, q image.Point) {
 }
 
 func abs(x int) int {
-    if x < 0 {
-        return -x
-    } else {
-        return x
-    }
+	if x < 0 {
+		return -x
+	} else {
+		return x
+	}
 }
 
 func drawLine(im *image.RGBA, p, q image.Point) {
@@ -367,7 +369,7 @@ func drawLine(im *image.RGBA, p, q image.Point) {
 func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 image.Point, size int) []image.Point {
 	if size <= 2 {
 		if is_block_black(rectFrom4Points(p1, p2, p3, p4), sourceImage) {
-            mid := p1.Add(p2).Add(p3).Add(p4).Div(4)
+			mid := p1.Add(p2).Add(p3).Add(p4).Div(4)
 			return []image.Point{mid, mid}
 		} else {
 			return nil
@@ -393,19 +395,19 @@ func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 im
 		return nil
 	}
 	if lt == nil {
-        p := p1.Add(p12h.Add(p23h).Div(2))
+		p := p1.Add(p12h.Add(p23h).Div(2))
 		lt = []image.Point{p, p}
 	}
 	if lb == nil {
-        p := p2.Add(p23h.Sub(p12h).Div(2))
+		p := p2.Add(p23h.Sub(p12h).Div(2))
 		lb = []image.Point{p, p}
 	}
 	if rb == nil {
-        p := p3.Sub(p12h.Add(p23h).Div(2))
+		p := p3.Sub(p12h.Add(p23h).Div(2))
 		rb = []image.Point{p, p}
 	}
 	if rt == nil {
-        p := p4.Add(p12h.Sub(p23h).Div(2))
+		p := p4.Add(p12h.Sub(p23h).Div(2))
 		rt = []image.Point{p, p}
 	}
 	drawLine(resultImage, lt[1], lb[0])
@@ -447,16 +449,11 @@ func HilbertDarken(sourceImageFilename, resultImageFilename string) error {
 	tmp := HilbertCurveFilter(im)
 	for i := tmp.Bounds().Min.X; i < tmp.Bounds().Max.X; i++ {
 		for j := tmp.Bounds().Min.Y; j < tmp.Bounds().Max.Y; j++ {
-            r, g, b, _ := tmp.At(i, j).RGBA()
-            if r > 0 || g > 0 || b > 0 {
-                tmp.Set(i, j, im.At(i, j))
-            }
+			r, g, b, _ := tmp.At(i, j).RGBA()
+			if r > 0 || g > 0 || b > 0 {
+				tmp.Set(i, j, im.At(i, j))
+			}
 		}
 	}
 	return save_image(tmp, resultImageFilename)
 }
-
-func ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source string) error {
-	return fmt.Errorf("Not implemented")
-}
-
