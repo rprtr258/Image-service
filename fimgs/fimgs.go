@@ -13,7 +13,7 @@ import (
 	"os/exec"
 )
 
-func loadImageFile(image_filename string) (res image.Image, err error) {
+func LoadImageFile(image_filename string) (res image.Image, err error) {
 	ff, err := os.Open(image_filename)
 	if err != nil {
 		return
@@ -36,7 +36,7 @@ func save_image(im image.Image, imageFilename string) (err error) {
 	return
 }
 
-func apply_convolution(im image.Image, kernel [][]int) image.Image {
+func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 	kernelHalfWidth, kernelHalfHeight := len(kernel)/2, len(kernel)/2
 	R := make([][][]int, im.Bounds().Dx())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
@@ -100,22 +100,21 @@ func apply_convolution(im image.Image, kernel [][]int) image.Image {
     return filtered_im
 }
 
-func applyConvolutionFilter(sourceImageFilename string, resultImageFilename string, kernel [][]int) error {
-	im, err := loadImageFile(sourceImageFilename)
+func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename string, kernel [][]int) error {
+	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
 		return fmt.Errorf("Error occured during loading image:\n%q", err)
 	}
-    resImage := apply_convolution(im, kernel)
+    resImage := ApplyConvolution(im, kernel)
 	return save_image(resImage, resultImageFilename)
 }
 
 // TODO: don't call bash?
-func transfer_style(imid string, style_name string) (res string, err error) {
-	res = fmt.Sprintf("img/%s.res.png", imid)
+func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) (res string, err error) {
 	os.Chdir("fast-style-transfer/")
 	if err = exec.Command(
 		"python3", "evaluate.py",
-		"--in-path", fmt.Sprintf("../%s", res),
+        "--in-path", fmt.Sprintf("../%s", res), // TODO: path.join
 		"--out-path", "../",
 		"--checkpoint", fmt.Sprintf("../ckpts/%s.ckpt", style_name),
 	).Run(); err != nil {
@@ -123,7 +122,7 @@ func transfer_style(imid string, style_name string) (res string, err error) {
 		return
 	}
 	os.Chdir("..")
-	if err = exec.Command("mv", fmt.Sprintf("%s.orig.png", imid), res).Run(); err != nil {
+	if err = exec.Command("mv", sourceImageFilename, res).Run(); err != nil {
 		err = fmt.Errorf("error running mv, error: %q", err)
 		return
 	}
@@ -134,11 +133,11 @@ func transfer_style(imid string, style_name string) (res string, err error) {
 	return
 }
 
-func applyKMeansFilter(sourceImageFilename string, resultImageFilename string, n_clusters int) (err error) {
+func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, n_clusters int) (err error) {
 	if n_clusters < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
 	}
-	im, err := loadImageFile(sourceImageFilename)
+	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
 		return fmt.Errorf("Error occured while loading image:\n%q", err)
 	}
@@ -377,7 +376,7 @@ func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 im
 }
 
 // TODO: try also https://en.wikipedia.org/wiki/Z-order_curve
-func hilbert_curve_filter(im image.Image) image.Image {
+func HilbertCurveFilter(im image.Image) image.Image {
 	// TODO: remove / change to absolute adjustment
 	// f = ImageEnhance.Brightness(res).enhance(1.3)
 	// f = ImageEnhance.Contrast(f).enhance(10)
@@ -392,21 +391,21 @@ func hilbert_curve_filter(im image.Image) image.Image {
 	return himage
 }
 
-func hilbert_curve(sourceImageFilename, resultImageFilename string) error {
-	im, err := loadImageFile(sourceImageFilename)
+func HilbertCurve(sourceImageFilename, resultImageFilename string) error {
+	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
 		return err
 	}
-	tmp := hilbert_curve_filter(im)
+	tmp := HilbertCurveFilter(im)
 	return save_image(tmp, resultImageFilename)
 }
 
-func hilbert_darken(sourceImageFilename, resultImageFilename string) error {
-	im, err := loadImageFile(sourceImageFilename)
+func HilbertDarken(sourceImageFilename, resultImageFilename string) error {
+	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
 		return err
 	}
-	tmp := hilbert_curve_filter(im)
+	tmp := HilbertCurveFilter(im)
 	// TODO: uncomment
 	// for i := tmp.Bounds().Min.X; i < tmp.Bounds().Max.X; i++ {
 	// 	for j := tmp.Bounds().Min.Y; j < tmp.Bounds().Max.y; j++ {
@@ -420,8 +419,8 @@ func hilbert_darken(sourceImageFilename, resultImageFilename string) error {
 	return save_image(tmp, resultImageFilename)
 }
 
-func shader_filter(imid, fragment_shader_source string) (string, error) {
-	return "", fmt.Errorf("Not implemented")
+func ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source string) error {
+	return fmt.Errorf("Not implemented")
 }
 
 //mux.HandleFunc("/blur", filterToHandler(&convolutionFilter{

@@ -3,19 +3,11 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"image"
-	"image/color"
-	"image/draw"
-	_ "image/jpeg"
-	"image/png"
 	"io"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,6 +19,10 @@ import (
 // TODO: command line application
 func get_next_filename() string {
 	return fmt.Sprintf("%v", time.Now())
+}
+
+func imageIdToResultImageFilename(imageId string) string {
+    return fmt.Sprintf("img/%s.res.png", imageId)
 }
 
 // TODO: rewrite paths to paths.join
@@ -169,11 +165,11 @@ type convolutionFilter struct {
 }
 
 func (f *convolutionFilter) process(imageFilename string, imageId string, _ url.Values) (string, error) {
-	im, err := loadImageFile(imageFilename)
-	if err != nil {
-		return "", fmt.Errorf("Error occured during loading image:\n%q", err)
-	}
-	return apply_convolution(im, imageId, f.kernel)
+    res := imageIdToResultImageFilename(imageId)
+    if err := fimgs.ApplyConvolutionFilter(imageFilename, res, f.kernel); err != nil {
+        return "", nil
+    }
+    return res, nil
 }
 
 type StyleTransferFilter struct {
@@ -183,7 +179,7 @@ type StyleTransferFilter struct {
 
 // TODO: change to much faster network / remove
 func (f *StyleTransferFilter) process(imageFilename string, imageId string, _ url.Values) (string, error) {
-	return transfer_style(imageId, f.styleName)
+	return fimgs.TransferStyle(imageFilename, imageIdToResultImageFilename(imageId), f.styleName)
 }
 
 type KMeansFilter struct {
@@ -206,6 +202,11 @@ func (f KMeansFilter) validate(form url.Values) error {
 
 func (f KMeansFilter) process(imageFilename string, imageId string, form url.Values) (filtered_filename string, err error) {
 	n_clusters, _ := strconv.Atoi(form.Get("n"))
+    resultImageFilename := imageIdToResultImageFilename(imageId)
+    if err := fimgs.ApplyKMeansFilter(imageFilename, resultImageFilename, n_clusters); err != nil {
+        return "", err
+    }
+    return resultImageFilename, nil
 }
 
 type HilbertFilter struct {
@@ -213,11 +214,11 @@ type HilbertFilter struct {
 }
 
 func (f *HilbertFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-	im, err := loadImageFile(imageFilename)
-	if err != nil {
-		return "", err
-	}
-	return hilbert_curve(im, imageId)
+    resultImageFilename := imageIdToResultImageFilename(imageId)
+    if err := fimgs.HilbertCurve(imageFilename, resultImageFilename); err != nil {
+        return "", err
+    }
+    return resultImageFilename, nil
 }
 
 type HilbertDarkenFilter struct {
@@ -225,11 +226,11 @@ type HilbertDarkenFilter struct {
 }
 
 func (f *HilbertDarkenFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
-	im, err := loadImageFile(imageFilename)
-	if err != nil {
-		return "", err
-	}
-	return hilbert_darken(im, imageId)
+    resultImageFilename := imageIdToResultImageFilename(imageId)
+    if err := fimgs.HilbertDarken(imageFilename, resultImageFilename); err != nil {
+        return "", err
+    }
+    return resultImageFilename, nil
 }
 
 type ShaderFilter struct {
@@ -247,7 +248,11 @@ func (f *ShaderFilter) validate(form url.Values) error {
 
 func (f *ShaderFilter) process(imageFilename string, imageId string, form url.Values) (string, error) {
 	fragment_shader_source := form.Get("fragment_shader_source")
-	return shader_filter(imageId, fragment_shader_source)
+    resultImageFilename := imageIdToResultImageFilename(imageId)
+    if err := fimgs.ShaderFilter(imageFilename, resultImageFilename, fragment_shader_source); err != nil {
+        return "", err
+    }
+    return resultImageFilename, nil
 }
 
 // TODO: log incoming requests in web server thoroughly, log request params, log result, timing

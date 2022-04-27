@@ -1,7 +1,2 @@
-# python cached files
-__pycache__/*
-*.pyc
-# IDE files
-.vscode/*
 # Static files
-img/*
+webserver/img/*
