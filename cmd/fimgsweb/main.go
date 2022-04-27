@@ -310,84 +310,40 @@ func Route(w http.ResponseWriter, r *http.Request) {
 
 	mux.HandleFunc("/blur", filterToHandler(&convolutionFilter{
 		BasicFilter{"Blur", "filter.html", pages_templates},
-		[][]int{
-			{1, 1, 1},
-			{1, 1, 1},
-			{1, 1, 1},
-		},
+        fimgs.BLUR_KERNEL,
 	}))
-
 	mux.HandleFunc("/weakblur", filterToHandler(&convolutionFilter{
 		BasicFilter{"Weak blur", "filter.html", pages_templates},
-		[][]int{
-			{0, 1, 0},
-			{1, 1, 1},
-			{0, 1, 0},
-		},
+        fimgs.WEAK_BLUR_KERNEL,
 	}))
-
 	mux.HandleFunc("/emboss", filterToHandler(&convolutionFilter{
 		BasicFilter{"Emboss", "filter.html", pages_templates},
-		[][]int{
-			{-2, -1, 0},
-			{-1, 1, 1},
-			{0, 1, 2},
-		},
+        fimgs.EMBOSS_KERNEL,
 	}))
-
 	mux.HandleFunc("/sharpen", filterToHandler(&convolutionFilter{
 		BasicFilter{"Sharpen", "filter.html", pages_templates},
-		[][]int{
-			{0, -1, 0},
-			{-1, 5, -1},
-			{0, -1, 0},
-		},
+        fimgs.SHARPEN_KERNEL,
 	}))
-
 	mux.HandleFunc("/edgeenhance", filterToHandler(&convolutionFilter{
 		BasicFilter{"Edge enhance", "filter.html", pages_templates},
-		[][]int{
-			{0, 0, 0},
-			{-1, 1, 0},
-			{0, 0, 0},
-		},
+        fimgs.EDGE_ENHANCE_KERNEL,
 	}))
-
 	mux.HandleFunc("/edgedetect1", filterToHandler(&convolutionFilter{
 		BasicFilter{"Edge detect 1", "filter.html", pages_templates},
-		[][]int{
-			{1, 0, -1},
-			{0, 0, 0},
-			{-1, 0, 1},
-		},
+        fimgs.EDGE_DETECT1_KERNEL,
 	}))
-
 	mux.HandleFunc("/edgedetect2", filterToHandler(&convolutionFilter{
 		BasicFilter{"Edge detect 2", "filter.html", pages_templates},
-		[][]int{
-			{0, -1, 0},
-			{-1, 4, -1},
-			{0, -1, 0},
-		},
+        fimgs.EDGE_DETECT2_KERNEL,
 	}))
-
 	mux.HandleFunc("/horizontallines", filterToHandler(&convolutionFilter{
 		BasicFilter{"Horizontal lines", "filter.html", pages_templates},
-		[][]int{
-			{-1, -1, -1},
-			{2, 2, 2},
-			{-1, -1, -1},
-		},
-	}))
-
+        fimgs.HORIZONTAL_LINES_KERNEL,
+    }))
 	mux.HandleFunc("/verticallines", filterToHandler(&convolutionFilter{
 		BasicFilter{"Vertical lines", "filter.html", pages_templates},
-		[][]int{
-			{-1, 2, -1},
-			{-1, 2, -1},
-			{-1, 2, -1},
-		},
-	}))
+        fimgs.VERTICAL_LINES_KERNEL
+    }))
 
 	// TODO: draw lokot'
 	// TODO: fix double POST???
@@ -402,7 +358,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 
 	mux.HandleFunc("/hilbert", filterToHandler(&HilbertFilter{BasicFilter{"Hilbert curve", "filter.html", pages_templates}}))
 
-	mux.HandleFunc("/hilbertdarken", filterToHandler(&HilbertFilter{BasicFilter{"Hilbert curve darken", "filter.html", pages_templates}}))
+	mux.HandleFunc("/hilbertdarken", filterToHandler(&HilbertDarkenFilter{BasicFilter{"Hilbert curve darken", "filter.html", pages_templates}}))
 
 	mux.HandleFunc("/shader", filterToHandler(&ShaderFilter{BasicFilter{"Shader", "shader.html", pages_templates}}))
 

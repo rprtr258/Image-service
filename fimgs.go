@@ -13,6 +13,54 @@ import (
 	"os/exec"
 )
 
+const (
+    BLUR_KERNEL = [][]int{
+        {1, 1, 1},
+        {1, 1, 1},
+        {1, 1, 1},
+    }
+    WEAKBLUR_KERNEL = [][]int{
+        {0, 1, 0},
+        {1, 1, 1},
+        {0, 1, 0},
+    }
+    EMBOSS_KERNEL = [][]int{
+        {-2, -1, 0},
+        {-1, 1, 1},
+        {0, 1, 2},
+    }
+    SHARPEN_KERNEL = [][]int{
+        {0, -1, 0},
+        {-1, 5, -1},
+        {0, -1, 0},
+    }
+    EDGE_ENHANCE_KERNEL = [][]int{
+        {0, 0, 0},
+        {-1, 1, 0},
+        {0, 0, 0},
+    }
+    EDGE_DETECT1_KERNEL = [][]int{
+        {1, 0, -1},
+        {0, 0, 0},
+        {-1, 0, 1},
+    }
+    EDGE_DETECT2_KERNEL = [][]int{
+        {0, -1, 0},
+        {-1, 4, -1},
+        {0, -1, 0},
+    }
+    HORIZONTAL_LINES_KERNEL = [][]int{
+        {-1, -1, -1},
+        {2, 2, 2},
+        {-1, -1, -1},
+    }
+    VERTICAL_LINES_KERNEL = [][]int{
+        {-1, 2, -1},
+        {-1, 2, -1},
+        {-1, 2, -1},
+    }
+)
+
 func LoadImageFile(image_filename string) (res image.Image, err error) {
 	ff, err := os.Open(image_filename)
 	if err != nil {
