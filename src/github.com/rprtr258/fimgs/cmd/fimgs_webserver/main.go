@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-    "rprtr258/fimgs/fimgs"
+    "github.com/rprtr258/fimgs"
 )
 
 // TODO: command line application
