@@ -13,13 +13,13 @@ import (
 	"os/exec"
 )
 
-const (
+var (
     BLUR_KERNEL = [][]int{
         {1, 1, 1},
         {1, 1, 1},
         {1, 1, 1},
     }
-    WEAKBLUR_KERNEL = [][]int{
+    WEAK_BLUR_KERNEL = [][]int{
         {0, 1, 0},
         {1, 1, 1},
         {0, 1, 0},

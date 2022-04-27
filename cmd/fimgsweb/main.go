@@ -342,7 +342,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
     }))
 	mux.HandleFunc("/verticallines", filterToHandler(&convolutionFilter{
 		BasicFilter{"Vertical lines", "filter.html", pages_templates},
-        fimgs.VERTICAL_LINES_KERNEL
+        fimgs.VERTICAL_LINES_KERNEL,
     }))
 
 	// TODO: draw lokot'
