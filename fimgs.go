@@ -8,7 +8,6 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"math"
-	"math/rand"
 	"os"
 	"os/exec"
 )
@@ -61,13 +60,13 @@ var (
 	}
 )
 
-func LoadImageFile(image_filename string) (res image.Image, err error) {
+func LoadImageFile(image_filename string) (im image.Image, err error) {
 	imageFile, err := os.Open(image_filename)
 	if err != nil {
 		return
 	}
 	defer imageFile.Close()
-	res, _, err = image.Decode(imageFile)
+	im, _, err = image.Decode(imageFile)
 	if err != nil {
 		return
 	}
@@ -169,87 +168,6 @@ func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) 
 		"--checkpoint", fmt.Sprintf("../ckpts/%s.ckpt", style_name),
 	).Run(); err != nil {
 		err = fmt.Errorf("error running python3 evaluate.py, error: %q", err)
-		return
-	}
-	return
-}
-
-// TODO: filter init is also validation?
-func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, n_clusters int) (err error) {
-	if n_clusters < 2 {
-		return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
-	}
-	im, err := LoadImageFile(sourceImageFilename)
-	if err != nil {
-		return fmt.Errorf("error occured while loading image:\n%q", err)
-	}
-	kmeans := make([][]uint32, n_clusters)
-	sumAndCount := make([][]uint64, n_clusters) // sum of Rs, Gs, Bs and count
-	rand.Seed(0)
-	// TODO: init using https://en.wikipedia.org/wiki/K-means++
-	for i := 0; i < n_clusters; i++ {
-		kmeans[i] = []uint32{
-			rand.Uint32() / 0x10000,
-			rand.Uint32() / 0x10000,
-			rand.Uint32() / 0x10000,
-		}
-		sumAndCount[i] = make([]uint64, 4)
-	}
-	// TODO: optimize
-	for epoch := 0; epoch < 100; epoch++ { // TODO: or diff is small enough
-		for i := 0; i < n_clusters; i++ {
-			sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
-		}
-		// TODO: parallelize?
-		for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-			for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-				r, g, b, _ := im.At(i, j).RGBA()
-				minCluster := 0
-				minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
-				for k := 1; k < n_clusters; k++ {
-					dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
-					if dist < minDist {
-						minCluster = k
-						minDist = dist
-					}
-				}
-				sumAndCount[minCluster][0] += uint64(r)
-				sumAndCount[minCluster][1] += uint64(g)
-				sumAndCount[minCluster][2] += uint64(b)
-				sumAndCount[minCluster][3]++
-			}
-		}
-		for i := 0; i < n_clusters; i++ {
-			count := sumAndCount[i][3]
-			if count == 0 {
-				continue
-			}
-			kmeans[i][0], kmeans[i][1], kmeans[i][2] = uint32(sumAndCount[i][0]/count), uint32(sumAndCount[i][1]/count), uint32(sumAndCount[i][2]/count)
-		}
-	}
-	filtered_im := image.NewRGBA(im.Bounds())
-	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-			r, g, b, _ := im.At(i, j).RGBA()
-			minCluster := 0
-			minDist := (r-kmeans[0][0])*(r-kmeans[0][0]) + (g-kmeans[0][1])*(g-kmeans[0][1]) + (b-kmeans[0][2])*(b-kmeans[0][2])
-			for k := 1; k < n_clusters; k++ {
-				dist := (r-kmeans[k][0])*(r-kmeans[k][0]) + (g-kmeans[k][1])*(g-kmeans[k][1]) + (b-kmeans[k][2])*(b-kmeans[k][2])
-				if dist < minDist {
-					minCluster = k
-					minDist = dist
-				}
-			}
-			filtered_im.Set(i, j, color.RGBA{
-				uint8(kmeans[minCluster][0] / 0x100),
-				uint8(kmeans[minCluster][1] / 0x100),
-				uint8(kmeans[minCluster][2] / 0x100),
-				255,
-			})
-		}
-	}
-	err = saveImage(filtered_im, resultImageFilename)
-	if err != nil {
 		return
 	}
 	return

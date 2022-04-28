@@ -40,6 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 	var resultImageFilename string
+	// TODO: init filter using os.Args, only then apply
 	switch os.Args[1] {
 	case "blur":
 		resultImageFilename = convolutionFilter(fimgs.BLUR_KERNEL)
