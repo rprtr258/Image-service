@@ -174,6 +174,7 @@ func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) 
 	return
 }
 
+// TODO: filter init is also validation?
 func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, n_clusters int) (err error) {
 	if n_clusters < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)

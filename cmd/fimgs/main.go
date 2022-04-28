@@ -19,6 +19,7 @@ func makeResultFilename(filename string) string {
 	return fmt.Sprintf("%s.fimgs.%s.png", filename, nowString)
 }
 
+// TODO: interface not to return string?
 func convolutionFilter(kernel [][]int) string {
 	if len(os.Args) != 3 {
 		fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
