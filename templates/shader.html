@@ -25,8 +25,7 @@ form {
     float: right;
 }
 {{template "BeforeBody"}}
-<div style="display: flex;">
-<span>
+<span style="display: flex;">
     <form method="POST">
         <div class="label">Image url: 
             <input class="text" type="text" name="url" style="width: 600px">
@@ -43,7 +42,6 @@ form {
         <input class="button" type="submit">
         <p style="padding-left: 30pt; color: red;">{{.Message}}</p>
     </form>
+{{if .ImageFile}}<img style="width: 800px" src="{{.ImageFile}}">{{end}}
 </span>
-</div>
-{{if .ImageFile}}<img src="{{.ImageFile}}">{{end}}
 {{template "AfterBody"}}

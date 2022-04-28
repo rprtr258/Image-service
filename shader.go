@@ -80,7 +80,7 @@ func ShaderFilter(sourceImageFilename, resultImageFilename, fragmentShaderSource
 	}
 	defer glfw.Terminate()
 
-	// Terminate if any issue
+	// FIX: panics sometimes in webserver mode
 	window, err := glfw.CreateWindow(1, 1, "Thou shalt not exist", nil, nil) // Size (1, 1) for show nothing in window
 	if err != nil {
 		return fmt.Errorf("couldn't create window: %q", err)
