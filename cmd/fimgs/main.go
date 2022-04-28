@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/rprtr258/fimgs"
 )
@@ -14,10 +15,11 @@ func handleProcessingError(err error) {
 }
 
 func makeResultFilename(filename string) string {
-	return fmt.Sprintf("%s.fimgs.png", filename)
+	nowString := time.Now().Format("2006-01-02-03-04-05")
+	return fmt.Sprintf("%s.fimgs.%s.png", filename, nowString)
 }
 
-func convolutionFilter(kernel [][]int) {
+func convolutionFilter(kernel [][]int) string {
 	if len(os.Args) != 3 {
 		fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
 		os.Exit(1)
@@ -28,6 +30,7 @@ func convolutionFilter(kernel [][]int) {
 	if err != nil {
 		handleProcessingError(err)
 	}
+	return resultImageFilename
 }
 
 func main() {
@@ -35,25 +38,26 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
 		os.Exit(1)
 	}
+	var resultImageFilename string
 	switch os.Args[1] {
 	case "blur":
-		convolutionFilter(fimgs.BLUR_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.BLUR_KERNEL)
 	case "weakblur":
-		convolutionFilter(fimgs.WEAK_BLUR_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.WEAK_BLUR_KERNEL)
 	case "emboss":
-		convolutionFilter(fimgs.EMBOSS_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.EMBOSS_KERNEL)
 	case "sharpen":
-		convolutionFilter(fimgs.SHARPEN_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.SHARPEN_KERNEL)
 	case "edgeenhance":
-		convolutionFilter(fimgs.EDGE_ENHANCE_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.EDGE_ENHANCE_KERNEL)
 	case "edgedetect1":
-		convolutionFilter(fimgs.EDGE_DETECT1_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.EDGE_DETECT1_KERNEL)
 	case "edgedetect2":
-		convolutionFilter(fimgs.EDGE_DETECT2_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.EDGE_DETECT2_KERNEL)
 	case "horizontallines":
-		convolutionFilter(fimgs.HORIZONTAL_LINES_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.HORIZONTAL_LINES_KERNEL)
 	case "verticallines":
-		convolutionFilter(fimgs.VERTICAL_LINES_KERNEL)
+		resultImageFilename = convolutionFilter(fimgs.VERTICAL_LINES_KERNEL)
 	case "cluster":
 		if len(os.Args) != 4 {
 			fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
@@ -65,7 +69,7 @@ func main() {
 			os.Exit(1)
 		}
 		sourceImageFilename := os.Args[3]
-		resultImageFilename := makeResultFilename(sourceImageFilename)
+		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters); err != nil {
 			handleProcessingError(err)
 		}
@@ -81,7 +85,7 @@ func main() {
 			os.Exit(1)
 		}
 		sourceImageFilename := os.Args[2]
-		resultImageFilename := makeResultFilename(sourceImageFilename)
+		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertCurve(sourceImageFilename, resultImageFilename); err != nil {
 			handleProcessingError(err)
 		}
@@ -91,7 +95,7 @@ func main() {
 			os.Exit(1)
 		}
 		sourceImageFilename := os.Args[2]
-		resultImageFilename := makeResultFilename(sourceImageFilename)
+		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertDarken(sourceImageFilename, resultImageFilename); err != nil {
 			handleProcessingError(err)
 		}
@@ -100,11 +104,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
 			os.Exit(1)
 		}
+		// TODO: read from file
 		fragmentShaderSource := os.Args[2]
 		sourceImageFilename := os.Args[3]
-		resultImageFilename := makeResultFilename(sourceImageFilename)
+		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragmentShaderSource); err != nil {
 			handleProcessingError(err)
 		}
 	}
+	fmt.Println(resultImageFilename)
 }

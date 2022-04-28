@@ -17,15 +17,15 @@ import (
 )
 
 // TODO: command line application
-func get_next_filename() string {
-	return fmt.Sprintf("%v", time.Now())
+func generateNewImageId() string {
+	return time.Now().Format("2006-01-02-03-04-05")
 }
 
 // TODO: rewrite paths to paths.join
 // TODO: check if it is actually image, restrict size
-func load_image(url string) (res string, imid string, err error) {
+func downloadImage(url string) (imageFilename string, imageId string, err error) {
 	// TODO: cache files by url
-	imid = get_next_filename()
+	imageId = generateNewImageId()
 	r, err := http.Get(url)
 	if err != nil {
 		return
@@ -38,11 +38,11 @@ func load_image(url string) (res string, imid string, err error) {
 	case "image/png":
 		format = "png"
 	default:
-		err = fmt.Errorf("Image format %q is not supported", contentType)
+		err = fmt.Errorf("image format %q is not supported", contentType)
 		return
 	}
-	res = fmt.Sprintf("img/%s.orig.%s", imid, format)
-	f, err := os.Create(res)
+	imageFilename = fmt.Sprintf("img/%s.orig.%s", imageId, format)
+	f, err := os.Create(imageFilename)
 	defer func() {
 		f.Close()
 	}()
@@ -110,7 +110,7 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error in request params:\n%q", err))
 				return
 			}
-			sourceImageFilename, imageId, err := load_image(imageUrl)
+			sourceImageFilename, imageId, err := downloadImage(imageUrl)
 			if err != nil {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return

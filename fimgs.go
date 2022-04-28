@@ -62,25 +62,25 @@ var (
 )
 
 func LoadImageFile(image_filename string) (res image.Image, err error) {
-	ff, err := os.Open(image_filename)
+	imageFile, err := os.Open(image_filename)
 	if err != nil {
 		return
 	}
-	defer ff.Close()
-	res, _, err = image.Decode(ff)
+	defer imageFile.Close()
+	res, _, err = image.Decode(imageFile)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func save_image(im image.Image, imageFilename string) (err error) {
-	f, err := os.Create(imageFilename)
+func saveImage(im image.Image, imageFilename string) (err error) {
+	imageFile, err := os.Create(imageFilename)
 	if err != nil {
 		return
 	}
-	defer f.Close()
-	if err = png.Encode(f, im); err != nil {
+	defer imageFile.Close()
+	if err = png.Encode(imageFile, im); err != nil {
 		return
 	}
 	return
@@ -153,10 +153,10 @@ func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename string, kernel [][]int) error {
 	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
-		return fmt.Errorf("Error occured during loading image:\n%q", err)
+		return fmt.Errorf("rror occured during loading image:\n%q", err)
 	}
 	resImage := ApplyConvolution(im, kernel)
-	return save_image(resImage, resultImageFilename)
+	return saveImage(resImage, resultImageFilename)
 }
 
 // TODO: don't call bash?
@@ -180,7 +180,7 @@ func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, n
 	}
 	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
-		return fmt.Errorf("Error occured while loading image:\n%q", err)
+		return fmt.Errorf("error occured while loading image:\n%q", err)
 	}
 	kmeans := make([][]uint32, n_clusters)
 	sumAndCount := make([][]uint64, n_clusters) // sum of Rs, Gs, Bs and count
@@ -247,7 +247,7 @@ func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, n
 			})
 		}
 	}
-	err = save_image(filtered_im, resultImageFilename)
+	err = saveImage(filtered_im, resultImageFilename)
 	if err != nil {
 		return
 	}
@@ -438,7 +438,7 @@ func HilbertCurve(sourceImageFilename, resultImageFilename string) error {
 		return err
 	}
 	tmp := HilbertCurveFilter(im)
-	return save_image(tmp, resultImageFilename)
+	return saveImage(tmp, resultImageFilename)
 }
 
 func HilbertDarken(sourceImageFilename, resultImageFilename string) error {
@@ -455,5 +455,5 @@ func HilbertDarken(sourceImageFilename, resultImageFilename string) error {
 			}
 		}
 	}
-	return save_image(tmp, resultImageFilename)
+	return saveImage(tmp, resultImageFilename)
 }

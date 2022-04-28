@@ -76,7 +76,7 @@ func newTexture(file string) (uint32, int, int, error) {
 // requires libgl1-mesa-dev, xorg-dev packages
 func ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source string) (err error) {
 	if err = glfw.Init(); err != nil {
-		return fmt.Errorf("Couldn't initialize GLFW: %q", err)
+		return fmt.Errorf("couldn't initialize glfw: %q", err)
 	}
 	defer glfw.Terminate()
 
@@ -89,14 +89,14 @@ func ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_sour
 	// Terminate if any issue
 	window, err := glfw.CreateWindow(1, 1, "You shalt not exist", nil, nil) // Size (1, 1) for show nothing in window
 	if err != nil {
-		return fmt.Errorf("Couldn't create window: %q", err)
+		return fmt.Errorf("couldn't create window: %q", err)
 	}
 
 	// Set context to window
 	window.MakeContextCurrent()
 
 	if err := gl.Init(); err != nil {
-		return fmt.Errorf("Couldn't initialize glow: %q", err)
+		return fmt.Errorf("couldn't initialize glow: %q", err)
 	}
 
 	// Initial data
@@ -125,15 +125,15 @@ void main() {
 }`
 
 	// Compile shaders
-    vertexShader, err := compileShader(vertex_shader+"\x00", gl.VERTEX_SHADER) // TODO: is +"\x00" needed?
+	vertexShader, err := compileShader(vertex_shader+"\x00", gl.VERTEX_SHADER) // TODO: is +"\x00" needed?
 	if err != nil {
 		fmt.Printf("%q", gl.GetError())
-		return fmt.Errorf("Error compiling vertex shader: %q", err)
+		return fmt.Errorf("error compiling vertex shader: %q", err)
 	}
 	fragmentShader, err := compileShader(fragment_shader_source+"\x00", gl.FRAGMENT_SHADER)
 	if err != nil {
 		fmt.Printf("%q\n", gl.GetError())
-		return fmt.Errorf("Error compiling fragment shader: %q", err)
+		return fmt.Errorf("error compiling fragment shader: %q", err)
 	}
 	program := gl.CreateProgram()
 	gl.AttachShader(program, vertexShader)
@@ -178,8 +178,7 @@ void main() {
 
 	// TODO: sometimes fail with 0
 	if status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER); status != gl.FRAMEBUFFER_COMPLETE {
-		fmt.Printf("%q", gl.GetError())
-		return fmt.Errorf("incomplete framebuffer object, status is %d", status)
+		return fmt.Errorf("incomplete framebuffer object, status is %d, gl error is %q", status, gl.GetError())
 	}
 
 	// Install program
@@ -199,7 +198,7 @@ void main() {
 		Stride: int(imageWidth * 4),
 		Rect:   image.Rect(0, 0, int(imageWidth), int(imageHeight)),
 	}
-	if err = save_image(&image_out, resultImageFilename); err != nil {
+	if err = saveImage(&image_out, resultImageFilename); err != nil {
 		return
 	}
 	return nil
