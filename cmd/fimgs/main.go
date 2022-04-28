@@ -10,10 +10,38 @@ import (
 	"github.com/rprtr258/fimgs"
 )
 
-func handleProcessingError(err error) {
-	fmt.Fprintf(os.Stderr, "%s\n", err)
-	os.Exit(1)
-}
+const (
+	ProgramUsage = `Usage:
+%[1]s <filter_name> <filter_params> <source_image_file>
+Applies filter to image and saves new image. Available filters:
+Convolution filters:
+	blur, weakblur, emboss, sharpen, edgeenhance, edgedetect1, edgedetect2, horizontallines, verticallines
+Hilbert filters:
+	hilbert, hilbertdarken
+Other:
+	cluster - clusters colors, required parameters:
+		number of clusters, must be integer and greater than 1
+	shader - apply GLSL filter to image, required parameters:
+		shader file, must be valid fragment shader source, see shader_examples for examples
+Example usage:
+	%[1]s emboss girl.png
+	%[1]s cluster 4 rain.jpeg`
+	ClusterFilterUsage = `Usage:
+%[1]s %[2]s <number_of_clusters> <source_image_file>
+Applies cluster filter to image and saves new image.
+Example usage:
+	%[1]s %[2]s 5 girl.png`
+	ShaderFilterUsage = `Usage:
+%[1]s %[2]s <fragment_shader_source_file> <source_image_file>
+Applies GLSL shader to image and saves new image. Shader file must be valid fragment shader source, see shader_examples for examples.
+Example usage:
+	%[1]s %[2]s shader.glsl girl.png`
+	SimpleFilterUsage = `Usage:
+%[1]s %[2]s <source_image_file>
+Applies filter to image and saves new image.
+Example usage:
+	%[1]s %[2]s girl.png`
+)
 
 func makeResultFilename(filename string) string {
 	nowString := time.Now().Format("2006-01-02-03-04-05")
@@ -21,61 +49,60 @@ func makeResultFilename(filename string) string {
 }
 
 // TODO: interface not to return string?
-func convolutionFilter(kernel [][]int) string {
+func convolutionFilter(kernel [][]int) (string, string) {
 	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
-		os.Exit(1)
+		return "", fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1])
 	}
 	sourceImageFilename := os.Args[2]
 	resultImageFilename := makeResultFilename(sourceImageFilename)
 	err := fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, kernel)
 	if err != nil {
-		handleProcessingError(err)
+		return "", fmt.Sprintf("Error applying filter:\n%s", err)
 	}
-	return resultImageFilename
+	return resultImageFilename, ""
 }
 
-func main() {
+func mainRoutine() (string, string) {
 	if len(os.Args) == 1 {
-		fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
-		os.Exit(1)
+		return "", fmt.Sprintf(ProgramUsage, os.Args[0])
 	}
 	var resultImageFilename string
 	// TODO: init filter using os.Args, only then apply
 	switch os.Args[1] {
+	case "--help", "-h":
+		return "", fmt.Sprintf(ProgramUsage, os.Args[0])
 	case "blur":
-		resultImageFilename = convolutionFilter(fimgs.BLUR_KERNEL)
+		return convolutionFilter(fimgs.BLUR_KERNEL)
 	case "weakblur":
-		resultImageFilename = convolutionFilter(fimgs.WEAK_BLUR_KERNEL)
+		return convolutionFilter(fimgs.WEAK_BLUR_KERNEL)
 	case "emboss":
-		resultImageFilename = convolutionFilter(fimgs.EMBOSS_KERNEL)
+		return convolutionFilter(fimgs.EMBOSS_KERNEL)
 	case "sharpen":
-		resultImageFilename = convolutionFilter(fimgs.SHARPEN_KERNEL)
+		return convolutionFilter(fimgs.SHARPEN_KERNEL)
 	case "edgeenhance":
-		resultImageFilename = convolutionFilter(fimgs.EDGE_ENHANCE_KERNEL)
+		return convolutionFilter(fimgs.EDGE_ENHANCE_KERNEL)
 	case "edgedetect1":
-		resultImageFilename = convolutionFilter(fimgs.EDGE_DETECT1_KERNEL)
+		return convolutionFilter(fimgs.EDGE_DETECT1_KERNEL)
 	case "edgedetect2":
-		resultImageFilename = convolutionFilter(fimgs.EDGE_DETECT2_KERNEL)
+		return convolutionFilter(fimgs.EDGE_DETECT2_KERNEL)
 	case "horizontallines":
-		resultImageFilename = convolutionFilter(fimgs.HORIZONTAL_LINES_KERNEL)
+		return convolutionFilter(fimgs.HORIZONTAL_LINES_KERNEL)
 	case "verticallines":
-		resultImageFilename = convolutionFilter(fimgs.VERTICAL_LINES_KERNEL)
+		return convolutionFilter(fimgs.VERTICAL_LINES_KERNEL)
 	case "cluster":
 		if len(os.Args) != 4 {
-			fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
-			os.Exit(1)
+			return "", fmt.Sprintf(ClusterFilterUsage, os.Args[0], os.Args[1])
 		}
 		n_clusters, err := strconv.Atoi(os.Args[2])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Wrong clusters number: %q", os.Args[2])
-			os.Exit(1)
+			return "", fmt.Sprintf("Clusters number should be number, not %q", os.Args[2])
 		}
 		sourceImageFilename := os.Args[3]
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters); err != nil {
-			handleProcessingError(err)
+			return "", fmt.Sprintf("Error applying filter:\n%s", err)
 		}
+		return resultImageFilename, ""
 	// "lamuse"        "la_muse"
 	// "scream"        "scream"
 	// "wave"          "wave"
@@ -84,44 +111,53 @@ func main() {
 	// "rain_princess" "rain_princess"
 	case "hilbert":
 		if len(os.Args) != 3 {
-			fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
-			os.Exit(1)
+			return "", fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1])
 		}
 		sourceImageFilename := os.Args[2]
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertCurve(sourceImageFilename, resultImageFilename); err != nil {
-			handleProcessingError(err)
+			return "", fmt.Sprintf("Error applying filter:\n%s", err)
 		}
+		return resultImageFilename, ""
 	case "hilbertdarken":
 		if len(os.Args) != 3 {
-			fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
-			os.Exit(1)
+			return "", fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1])
 		}
 		sourceImageFilename := os.Args[2]
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertDarken(sourceImageFilename, resultImageFilename); err != nil {
-			handleProcessingError(err)
+			return "", fmt.Sprintf("Error applying filter:\n%s", err)
 		}
+		return resultImageFilename, ""
 	case "shader":
 		if len(os.Args) != 4 {
-			fmt.Fprintln(os.Stderr, "Usage: ") // TODO: usage
-			os.Exit(1)
+			return "", fmt.Sprintf(ShaderFilterUsage, os.Args[0], os.Args[1])
 		}
-		// TODO: read from file
 		fragmentShaderFilename := os.Args[2]
 		sourceImageFilename := os.Args[3]
 		fragmentShaderFile, err := os.Open(fragmentShaderFilename)
 		if err != nil {
-			handleProcessingError(fmt.Errorf("error opening fragment shader source: %q", err))
+			return "", fmt.Sprintf("error opening fragment shader source: %q", err)
 		}
 		fragmentShaderSourceData, err := ioutil.ReadAll(fragmentShaderFile)
 		if err != nil {
-			handleProcessingError(fmt.Errorf("error loading fragment shader source: %q", err))
+			return "", fmt.Sprintf("error loading fragment shader source: %q", err)
 		}
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, string(fragmentShaderSourceData)); err != nil {
-			handleProcessingError(err)
+			return "", fmt.Sprintf("Error applying filter:\n%s", err)
 		}
+		return resultImageFilename, ""
+	default:
+		return "", fmt.Sprintf("unknown command: %q", os.Args[1])
 	}
-	fmt.Println(resultImageFilename)
+}
+
+func main() {
+	resultImageFilename, message := mainRoutine()
+	if message != "" {
+		fmt.Fprintf(os.Stderr, "%s\n", message)
+		os.Exit(1)
+	}
+	fmt.Print(resultImageFilename)
 }
