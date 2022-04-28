@@ -23,3 +23,5 @@ Example usage:
 	fimgs emboss girl.png
 	fimgs cluster 4 rain.jpeg`
 ```
+
+TODO: add image examples (they are in img/static, I just need to add them here)
