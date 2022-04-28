@@ -30,24 +30,24 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 		log := strings.Repeat("\x00", int(logLength+1))
 		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
 
-		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
+		return 0, fmt.Errorf("failed to compile shader source:\n%v\nerror:\n%v", source, log)
 	}
 	return shader, nil
 }
 
-func newTexture(file string) (uint32, int, int, error) {
+func newTexture(file string) (int, int, error) {
 	imgFile, err := os.Open(file)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("texture %q not found on disk: %v", file, err)
+		return 0, 0, fmt.Errorf("texture %q not found on disk: %v", file, err)
 	}
 	img, _, err := image.Decode(imgFile)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 
 	rgba := image.NewRGBA(img.Bounds())
 	if rgba.Stride != rgba.Rect.Size().X*4 {
-		return 0, 0, 0, fmt.Errorf("unsupported stride")
+		return 0, 0, fmt.Errorf("unsupported stride")
 	}
 	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
 
@@ -70,24 +70,18 @@ func newTexture(file string) (uint32, int, int, error) {
 		gl.UNSIGNED_BYTE,
 		gl.Ptr(rgba.Pix),
 	)
-	return texture, rgba.Rect.Size().X, rgba.Rect.Size().Y, nil
+	return rgba.Rect.Size().X, rgba.Rect.Size().Y, nil
 }
 
 // requires libgl1-mesa-dev, xorg-dev packages
-func ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source string) (err error) {
-	if err = glfw.Init(); err != nil {
+func ShaderFilter(sourceImageFilename, resultImageFilename, fragmentShaderSource string) error {
+	if err := glfw.Init(); err != nil {
 		return fmt.Errorf("couldn't initialize glfw: %q", err)
 	}
 	defer glfw.Terminate()
 
-	//glfw.WindowHint(glfw.Resizable, glfw.False)
-	//glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	//glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	//glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	//glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-
 	// Terminate if any issue
-	window, err := glfw.CreateWindow(1, 1, "You shalt not exist", nil, nil) // Size (1, 1) for show nothing in window
+	window, err := glfw.CreateWindow(1, 1, "Thou shalt not exist", nil, nil) // Size (1, 1) for show nothing in window
 	if err != nil {
 		return fmt.Errorf("couldn't create window: %q", err)
 	}
@@ -101,7 +95,7 @@ func ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_sour
 
 	// Initial data
 	quad := []float32{
-		//  positions     texture coordinates
+		// [x, y, z=0] positions [u=(x+1)/2, v=(y+1)/2] texture coordinates
 		-1., -1., 0., 0., 0.,
 		1., -1., 0., 1., 0.,
 		1., 1., 0., 1., 1.,
@@ -125,15 +119,13 @@ void main() {
 }`
 
 	// Compile shaders
-	vertexShader, err := compileShader(vertex_shader+"\x00", gl.VERTEX_SHADER) // TODO: is +"\x00" needed?
+	vertexShader, err := compileShader(vertex_shader, gl.VERTEX_SHADER)
 	if err != nil {
-		fmt.Printf("%q", gl.GetError())
-		return fmt.Errorf("error compiling vertex shader: %q", err)
+		return fmt.Errorf("error compiling vertex shader:\n%q", err)
 	}
-	fragmentShader, err := compileShader(fragment_shader_source+"\x00", gl.FRAGMENT_SHADER)
+	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
 	if err != nil {
-		fmt.Printf("%q\n", gl.GetError())
-		return fmt.Errorf("error compiling fragment shader: %q", err)
+		return fmt.Errorf("error compiling fragment shader:\n%s", err)
 	}
 	program := gl.CreateProgram()
 	gl.AttachShader(program, vertexShader)
@@ -159,9 +151,9 @@ void main() {
 	gl.VertexAttribPointerWithOffset(1, 2, gl.FLOAT, false, 4*5, 12)
 	gl.EnableVertexAttribArray(1)
 
-	_, imageWidth, imageHeight, err := newTexture(sourceImageFilename)
+	imageWidth, imageHeight, err := newTexture(sourceImageFilename)
 	if err != nil {
-		return
+		return fmt.Errorf("error loading texture: %q", err)
 	}
 
 	// Create render buffer with size (image.width x image.height)
@@ -176,7 +168,7 @@ void main() {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, fb_obj)
 	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb_obj)
 
-	// TODO: sometimes fail with 0
+	// FIX: sometimes fail with 0
 	if status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER); status != gl.FRAMEBUFFER_COMPLETE {
 		return fmt.Errorf("incomplete framebuffer object, status is %d, gl error is %q", status, gl.GetError())
 	}
@@ -195,11 +187,11 @@ void main() {
 
 	image_out := image.RGBA{
 		Pix:    data,
-		Stride: int(imageWidth * 4),
-		Rect:   image.Rect(0, 0, int(imageWidth), int(imageHeight)),
+		Stride: imageWidth * 4,
+		Rect:   image.Rect(0, 0, imageWidth, imageHeight),
 	}
 	if err = saveImage(&image_out, resultImageFilename); err != nil {
-		return
+		return fmt.Errorf("error saving file: %q", err)
 	}
 	return nil
 }

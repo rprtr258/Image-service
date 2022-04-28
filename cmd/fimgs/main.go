@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 func handleProcessingError(err error) {
-	fmt.Fprintf(os.Stderr, "Error: %q\n", err)
+	fmt.Fprintf(os.Stderr, "%s\n", err)
 	os.Exit(1)
 }
 
@@ -107,10 +108,18 @@ func main() {
 			os.Exit(1)
 		}
 		// TODO: read from file
-		fragmentShaderSource := os.Args[2]
+		fragmentShaderFilename := os.Args[2]
 		sourceImageFilename := os.Args[3]
+		fragmentShaderFile, err := os.Open(fragmentShaderFilename)
+		if err != nil {
+			handleProcessingError(fmt.Errorf("error opening fragment shader source: %q", err))
+		}
+		fragmentShaderSourceData, err := ioutil.ReadAll(fragmentShaderFile)
+		if err != nil {
+			handleProcessingError(fmt.Errorf("error loading fragment shader source: %q", err))
+		}
 		resultImageFilename = makeResultFilename(sourceImageFilename)
-		if err := fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragmentShaderSource); err != nil {
+		if err := fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, string(fragmentShaderSourceData)); err != nil {
 			handleProcessingError(err)
 		}
 	}
