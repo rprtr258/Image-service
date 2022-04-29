@@ -122,7 +122,7 @@ func QuadTree(im image.Image, power float64, threshold int) *image.RGBA {
 		quadCenter := [2]int{p%imageWidth + halfQuadSize, p/imageWidth + halfQuadSize}
 		xi, yi := i%imageWidth, i/imageWidth
 		dx, dy := xi-quadCenter[0], yi-quadCenter[1]
-		if math.Floor(math.Pow(math.Pow(math.Abs(float64(dx)), power)+math.Pow(math.Abs(float64(dy)), power), 1./power)) <= math.Ceil(float64(halfQuadSize)) {
+		if math.Pow(math.Pow(math.Abs(float64(dx)), power)+math.Pow(math.Abs(float64(dy)), power), 1./power) <= float64(halfQuadSize) {
 			ci := minColor[p]
 			ca := maxColor[p]
 			himage.Set(xi, yi, color.RGBA64{uint16((ci[0] + ca[0]) / 2), uint16((ci[1] + ca[1]) / 2), uint16((ci[2] + ca[2]) / 2), 0xFFFF})
