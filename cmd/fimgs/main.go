@@ -23,6 +23,9 @@ Other:
 		number of clusters, must be integer and greater than 1
 	shader - apply GLSL filter to image, required parameters:
 		shader file, must be valid fragment shader source, see shader_examples for examples
+	quadtree - apply quad tree like filter, required parameters:
+		threshold must be integer from 0 to 65536 exclusive
+		power must be float greater than 0.0
 Example usage:
 	%[1]s emboss girl.png
 	%[1]s cluster 4 rain.jpeg`
