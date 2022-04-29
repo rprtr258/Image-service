@@ -15,13 +15,13 @@ func absDiff(x, y uint32) uint32 {
 	}
 }
 
-func distSquared(a, b []uint32) uint32 {
+func distSquared(a, b [3]uint32) uint32 {
 	dx, dy, dz := absDiff(a[0], b[0]), absDiff(a[1], b[1]), absDiff(a[2], b[2])
 	return dx*dx + dy*dy + dz*dz
 }
 
-func initClusterCenters(pixelColors [][]uint32, clustersCount int) [][]uint32 {
-	clustersCenters := make([][]uint32, clustersCount)
+func initClusterCenters(pixelColors [][3]uint32, clustersCount int) [][3]uint32 {
+	clustersCenters := make([][3]uint32, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
 	minClusterDistance := make([]float64, len(pixelColors))
 	minClusterDistanceSum := 0.0
@@ -30,7 +30,7 @@ func initClusterCenters(pixelColors [][]uint32, clustersCount int) [][]uint32 {
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter []uint32
+		var clusterCenter [3]uint32
 		x := rand.Float64() * minClusterDistanceSum
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
@@ -64,19 +64,16 @@ func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, c
 	if err != nil {
 		return fmt.Errorf("error occured while loading image:\n%q", err)
 	}
-	pixelColors := make([][]uint32, im.Bounds().Dx()*im.Bounds().Dy())
+	pixelColors := make([][3]uint32, im.Bounds().Dx()*im.Bounds().Dy())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = []uint32{r, g, b}
+			pixelColors[i+j*im.Bounds().Dx()] = [3]uint32{r, g, b}
 		}
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
-	sumAndCount := make([][]uint64, clustersCount) // sum of Rs, Gs, Bs and count
-	for i := 0; i < clustersCount; i++ {
-		sumAndCount[i] = make([]uint64, 4)
-	}
+	sumAndCount := make([][4]uint64, clustersCount) // sum of Rs, Gs, Bs and count
 	// TODO: optimize/parallelize
 	for epoch := 0; epoch < 100; epoch++ {
 		for i := 0; i < clustersCount; i++ {

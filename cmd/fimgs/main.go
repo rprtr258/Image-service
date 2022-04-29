@@ -36,6 +36,13 @@ Example usage:
 Applies GLSL shader to image and saves new image. Shader file must be valid fragment shader source, see shader_examples for examples.
 Example usage:
 	%[1]s %[2]s shader.glsl girl.png`
+	QuadTreeUsage = `Usage:
+%[1]s %[2]s <threshold> <power> <source_image_file>
+Applies quad tree like filter to image and saves new image.
+	threshold must be integer from 0 to 65536 exclusive
+	power must be float greater than 0.0
+Example usage:
+	%[1]s %[2]s 40000 3.14 girl.png`
 	SimpleFilterUsage = `Usage:
 %[1]s %[2]s <source_image_file>
 Applies filter to image and saves new image.
@@ -126,6 +133,24 @@ func mainRoutine() (string, string) {
 		sourceImageFilename := os.Args[2]
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertDarken(sourceImageFilename, resultImageFilename); err != nil {
+			return "", fmt.Sprintf("Error applying filter:\n%s", err)
+		}
+		return resultImageFilename, ""
+	case "quadtree":
+		if len(os.Args) != 5 {
+			return "", fmt.Sprintf(QuadTreeUsage, os.Args[0], os.Args[1])
+		}
+		threshold, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			return "", fmt.Sprintf("Error parsing threshold: %s", err)
+		}
+		power, err := strconv.ParseFloat(os.Args[3], 64)
+		if err != nil {
+			return "", fmt.Sprintf("Error parsing power: %s", err)
+		}
+		sourceImageFilename := os.Args[4]
+		resultImageFilename = makeResultFilename(sourceImageFilename)
+		if err := fimgs.QudTreeFilter(sourceImageFilename, resultImageFilename, power, threshold); err != nil {
 			return "", fmt.Sprintf("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, ""

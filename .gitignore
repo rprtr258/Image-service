@@ -1,6 +1,5 @@
-RAIN-PRINCESS.jpg
-favicon.png
-girl.png
+*.jpg
+*.png
 # Static files
 img/*png
 img/*jpg

@@ -137,7 +137,6 @@ void main() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, vertex_buffer_object)
 	gl.BufferData(gl.ARRAY_BUFFER, len(quad)*4, gl.Ptr(quad), gl.STATIC_DRAW)
 
-	// EBO
 	var entity_buffer_object uint32
 	gl.GenBuffers(1, &entity_buffer_object)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, entity_buffer_object)
