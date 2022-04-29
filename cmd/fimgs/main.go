@@ -28,7 +28,8 @@ Other:
 		power must be float greater than 0.0
 Example usage:
 	%[1]s emboss girl.png
-	%[1]s cluster 4 rain.jpeg`
+	%[1]s cluster 4 rain.jpeg
+	%[1]s quadtree 40000 3.14 girl.png`
 	ClusterFilterUsage = `Usage:
 %[1]s %[2]s <number_of_clusters> <source_image_file>
 Applies cluster filter to image and saves new image.
