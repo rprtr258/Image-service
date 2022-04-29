@@ -283,9 +283,11 @@ func drawLine(im *image.RGBA, p, q image.Point) {
 	}
 }
 
-// TODO: pass 1st point and vectors 1->2, 2->3, instead of p1-4
 // TODO: pass log2(size) instead of size
-func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 image.Point, size int) []image.Point {
+func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p12, p23 image.Point, size int) []image.Point {
+	p2 := p1.Add(p12)
+	p3 := p2.Add(p23)
+	p4 := p1.Add(p23)
 	if size <= 2 {
 		if is_block_black(rectFrom4Points(p1, p2, p3, p4), sourceImage) {
 			mid := p1.Add(p2).Add(p3).Add(p4).Div(4)
@@ -304,12 +306,12 @@ func hilbert(sourceImage image.Image, resultImage *image.RGBA, p1, p2, p3, p4 im
 	// 2 |2-3 2-3|
 	// h 2-------3
 	//   .--->p23h
-	p12h := p2.Sub(p1).Div(2)
-	p23h := p3.Sub(p2).Div(2)
-	lt := hilbert(sourceImage, resultImage, p1, p1.Add(p23h), p1.Add(p23h).Add(p12h), p1.Add(p12h), size/2)
-	lb := hilbert(sourceImage, resultImage, p2.Sub(p12h), p2, p2.Add(p23h), p2.Add(p23h).Sub(p12h), size/2)
-	rb := hilbert(sourceImage, resultImage, p3.Sub(p12h).Sub(p23h), p3.Sub(p23h), p3, p3.Sub(p12h), size/2)
-	rt := hilbert(sourceImage, resultImage, p4.Add(p12h), p4.Add(p12h).Sub(p23h), p4.Sub(p23h), p4, size/2)
+	p12h := p12.Div(2)
+	p23h := p23.Div(2)
+	lt := hilbert(sourceImage, resultImage, p1, p23h, p12h, size/2)
+	lb := hilbert(sourceImage, resultImage, p2.Sub(p12h), p12h, p23h, size/2)
+	rb := hilbert(sourceImage, resultImage, p3.Sub(p12h).Sub(p23h), p12h, p23h, size/2)
+	rt := hilbert(sourceImage, resultImage, p4.Add(p12h), p23h.Mul(-1), p12h.Mul(-1), size/2)
 	if lt == nil && lb == nil && rb == nil && rt == nil && !is_block_black(rectFrom4Points(p1, p2, p3, p4), sourceImage) {
 		return nil
 	}
@@ -347,7 +349,7 @@ func HilbertCurveFilter(im image.Image) *image.RGBA {
 	W /= 2
 	himage := image.NewRGBA(im.Bounds())
 	draw.Draw(himage, himage.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
-	hilbert(im, himage, image.Point{im.Bounds().Min.X, im.Bounds().Max.Y}, im.Bounds().Min, image.Point{im.Bounds().Max.X, im.Bounds().Min.Y}, im.Bounds().Max, W)
+	hilbert(im, himage, im.Bounds().Min, image.Point{im.Bounds().Dx(), 0}, image.Point{0, im.Bounds().Dy()}, W)
 	return himage
 }
 
