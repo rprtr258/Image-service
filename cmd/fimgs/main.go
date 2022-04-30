@@ -70,6 +70,7 @@ func makeResultFilename(filename ImageFilename) ImageFilename {
 	return ImageFilename(fmt.Sprintf("%s.fimgs.%s.png", filename, nowString))
 }
 
+// TODO: specify custom kernel or use predefined?
 // TODO: interface not to return string?
 func convolutionFilter(kernel [][]int) (ImageFilename, ErrorMessage) {
 	if len(os.Args) != 3 {
