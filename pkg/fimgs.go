@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+type Color = [3]int
+
 var (
 	BLUR_KERNEL = [][]int{
 		{1, 1, 1},
@@ -85,9 +87,9 @@ func saveImage(im image.Image, imageFilename string) (err error) {
 
 func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 	kernelHalfWidth, kernelHalfHeight := len(kernel)/2, len(kernel)/2
-	R := make([][][3]int, im.Bounds().Dx())
+	R := make([][]Color, im.Bounds().Dx())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-		R[i] = make([][3]int, im.Bounds().Dy())
+		R[i] = make([]Color, im.Bounds().Dy())
 	}
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
@@ -114,7 +116,7 @@ func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 					b += int(db) * kernel[di][dj]
 				}
 			}
-			R[i][j] = [3]int{r, g, b}
+			R[i][j] = Color{r, g, b}
 		}
 	}
 	kernelMin, kernelMax := math.MaxInt, math.MinInt

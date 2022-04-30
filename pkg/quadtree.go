@@ -20,8 +20,8 @@ func min4(x, y, z, w int) int {
 	return min(min(x, y), min(z, w))
 }
 
-func calcMinColor4(c1, c2, c3, c4 [3]int) [3]int {
-	return [3]int{
+func calcMinColor4(c1, c2, c3, c4 Color) Color {
+	return Color{
 		min4(c1[0], c2[0], c3[0], c4[0]),
 		min4(c1[1], c2[1], c3[1], c4[1]),
 		min4(c1[2], c2[2], c3[2], c4[2]),
@@ -36,12 +36,16 @@ func max(x, y int) int {
 	}
 }
 
+func max3(x, y, z int) int {
+	return max(max(x, y), z)
+}
+
 func max4(x, y, z, w int) int {
 	return max(max(x, y), max(z, w))
 }
 
-func calcMaxColor4(c1, c2, c3, c4 [3]int) [3]int {
-	return [3]int{
+func calcMaxColor4(c1, c2, c3, c4 Color) Color {
+	return Color{
 		max4(c1[0], c2[0], c3[0], c4[0]),
 		max4(c1[1], c2[1], c3[1], c4[1]),
 		max4(c1[2], c2[2], c3[2], c4[2]),
@@ -55,7 +59,7 @@ func parent(p []int, x int) int {
 	return p[x]
 }
 
-func merge(p, blockWidth []int, minColor, maxColor [][3]int, topLeft, topRight, bottomLeft, bottomRight int) {
+func merge(p, blockWidth []int, minColor, maxColor []Color, topLeft, topRight, bottomLeft, bottomRight int) {
 	topLeft = parent(p, topLeft)
 	topRight = parent(p, topRight)
 	bottomLeft = parent(p, bottomLeft)
@@ -66,9 +70,8 @@ func merge(p, blockWidth []int, minColor, maxColor [][3]int, topLeft, topRight, 
 	maxColor[topLeft] = calcMaxColor4(maxColor[topLeft], maxColor[topRight], maxColor[bottomLeft], maxColor[bottomRight])
 }
 
-// TODO: typedef color
-func colorDiff(minColor, maxColor [3]int) int {
-	return max(max(maxColor[0]-minColor[0], maxColor[1]-minColor[1]), maxColor[2]-minColor[2])
+func colorDiff(minColor, maxColor Color) int {
+	return max3(maxColor[0]-minColor[0], maxColor[1]-minColor[1], maxColor[2]-minColor[2])
 }
 
 func QuadTree(im image.Image, power float64, threshold int) *image.RGBA {
@@ -76,14 +79,14 @@ func QuadTree(im image.Image, power float64, threshold int) *image.RGBA {
 	imageSize := imageWidth * im.Bounds().Dy()
 	dsuParent := make([]int, imageSize)
 	blockWidth := make([]int, imageSize)
-	minColor := make([][3]int, imageSize)
-	maxColor := make([][3]int, imageSize)
+	minColor := make([]Color, imageSize)
+	maxColor := make([]Color, imageSize)
 	for i := 0; i < imageSize; i++ {
 		dsuParent[i] = i
 		blockWidth[i] = 1
 		r, g, b, _ := im.At(i%imageWidth, i/imageWidth).RGBA()
-		minColor[i] = [3]int{int(r), int(g), int(b)}
-		maxColor[i] = [3]int{int(r), int(g), int(b)}
+		minColor[i] = Color{int(r), int(g), int(b)}
+		maxColor[i] = Color{int(r), int(g), int(b)}
 	}
 	for j := 1; j < imageWidth; j *= 2 {
 		for x := j; x < imageWidth; x += 2 * j {
