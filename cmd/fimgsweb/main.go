@@ -165,16 +165,6 @@ func (f *convolutionFilter) process(sourceImageFilename, resultImageFilename str
 	return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, f.kernel)
 }
 
-type StyleTransferFilter struct {
-	BasicFilter
-	styleName string
-}
-
-// TODO: change to much faster network / remove
-func (f *StyleTransferFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-	return fimgs.TransferStyle(sourceImageFilename, resultImageFilename, f.styleName)
-}
-
 type KMeansFilter struct {
 	BasicFilter
 }
@@ -187,7 +177,7 @@ func (f KMeansFilter) validate(form url.Values) error {
 	n_clusters, err := strconv.Atoi(form.Get("n"))
 	switch {
 	case err != nil:
-		return fmt.Errorf("Error parsing parameter 'n':\n%q", err)
+		return fmt.Errorf("error parsing parameter 'n':\n%q", err)
 	case n_clusters < 2:
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
 	}
@@ -348,18 +338,8 @@ func Route(w http.ResponseWriter, r *http.Request) {
 	// TODO: draw lokot'
 	// TODO: fix double POST???
 	mux.HandleFunc("/cluster", filterToHandler(&KMeansFilter{BasicFilter{"Cluster", "cluster.html", pages_templates}}))
-
-	mux.HandleFunc("/lamuse", filterToHandler(&StyleTransferFilter{BasicFilter{"La muse styling", "filter.html", pages_templates}, "la_muse"}))
-	mux.HandleFunc("/scream", filterToHandler(&StyleTransferFilter{BasicFilter{"Scream styling", "filter.html", pages_templates}, "scream"}))
-	mux.HandleFunc("/wave", filterToHandler(&StyleTransferFilter{BasicFilter{"Wave styling", "filter.html", pages_templates}, "wave"}))
-	mux.HandleFunc("/wreck", filterToHandler(&StyleTransferFilter{BasicFilter{"Wreck styling", "filter.html", pages_templates}, "wreck"}))
-	mux.HandleFunc("/udnie", filterToHandler(&StyleTransferFilter{BasicFilter{"Udnie styling", "filter.html", pages_templates}, "udnie"}))
-	mux.HandleFunc("/rain_princess", filterToHandler(&StyleTransferFilter{BasicFilter{"Rain princess styling", "filter.html", pages_templates}, "rain_princess"}))
-
 	mux.HandleFunc("/hilbert", filterToHandler(&HilbertFilter{BasicFilter{"Hilbert curve", "filter.html", pages_templates}}))
-
 	mux.HandleFunc("/hilbertdarken", filterToHandler(&HilbertDarkenFilter{BasicFilter{"Hilbert curve darken", "filter.html", pages_templates}}))
-
 	mux.HandleFunc("/shader", filterToHandler(&ShaderFilter{BasicFilter{"Shader", "shader.html", pages_templates}}))
 
 	mux.ServeHTTP(w, r)

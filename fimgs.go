@@ -8,7 +8,6 @@ import (
 	"image/png"
 	"math"
 	"os"
-	"os/exec"
 )
 
 var (
@@ -155,19 +154,4 @@ func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename stri
 	}
 	resImage := ApplyConvolution(im, kernel)
 	return saveImage(resImage, resultImageFilename)
-}
-
-// TODO: don't call bash?
-func TransferStyle(sourceImageFilename, resultImageFilename, style_name string) (err error) {
-	os.Chdir("fast-style-transfer/")
-	if err = exec.Command(
-		"python3", "evaluate.py",
-		"--in-path", sourceImageFilename,
-		"--out-path", resultImageFilename,
-		"--checkpoint", fmt.Sprintf("../ckpts/%s.ckpt", style_name),
-	).Run(); err != nil {
-		err = fmt.Errorf("error running python3 evaluate.py, error: %q", err)
-		return
-	}
-	return
 }
