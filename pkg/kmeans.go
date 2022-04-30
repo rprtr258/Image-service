@@ -54,16 +54,7 @@ func initClusterCenters(pixelColors [][3]uint32, clustersCount int) [][3]uint32 
 	return clustersCenters
 }
 
-// TODO: filter init is also validation?
-// TODO: operate on image, not file
-func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
-	if clustersCount < 2 {
-		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
-	}
-	im, err := LoadImageFile(sourceImageFilename)
-	if err != nil {
-		return fmt.Errorf("error occured while loading image:\n%q", err)
-	}
+func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	pixelColors := make([][3]uint32, im.Bounds().Dx()*im.Bounds().Dy())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
@@ -129,6 +120,19 @@ func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, c
 			})
 		}
 	}
+	return filtered_im
+}
+
+// TODO: filter init is also validation?
+func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
+	if clustersCount < 2 {
+		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
+	}
+	im, err := LoadImageFile(sourceImageFilename)
+	if err != nil {
+		return fmt.Errorf("error occured while loading image:\n%q", err)
+	}
+	filtered_im := ApplyKMeans(im, clustersCount)
 	err = saveImage(filtered_im, resultImageFilename)
 	if err != nil {
 		return
