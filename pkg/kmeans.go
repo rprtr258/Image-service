@@ -15,13 +15,17 @@ func absDiff(x, y uint32) uint32 {
 	}
 }
 
-func distSquared(a, b [3]uint32) uint32 {
-	dx, dy, dz := absDiff(a[0], b[0]), absDiff(a[1], b[1]), absDiff(a[2], b[2])
-	return dx*dx + dy*dy + dz*dz
+func distSquared(a, b [5]uint32) uint32 {
+	res := uint32(0)
+	for i, ai := range a {
+		di := absDiff(ai, b[i])
+		res += di * di
+	}
+	return res
 }
 
-func initClusterCenters(pixelColors [][3]uint32, clustersCount int) [][3]uint32 {
-	clustersCenters := make([][3]uint32, clustersCount)
+func initClusterCenters(pixelColors [][5]uint32, clustersCount int) [][5]uint32 {
+	clustersCenters := make([][5]uint32, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
 	minClusterDistance := make([]float64, len(pixelColors))
 	minClusterDistanceSum := 0.0
@@ -30,7 +34,8 @@ func initClusterCenters(pixelColors [][3]uint32, clustersCount int) [][3]uint32 
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter [3]uint32
+		// clustersCenters[k] = pixelColors[rand.Intn(len(pixelColors))]
+		var clusterCenter [5]uint32
 		x := rand.Float64() * minClusterDistanceSum
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
@@ -55,22 +60,22 @@ func initClusterCenters(pixelColors [][3]uint32, clustersCount int) [][3]uint32 
 }
 
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
-	pixelColors := make([][3]uint32, im.Bounds().Dx()*im.Bounds().Dy())
+	pixelColors := make([][5]uint32, im.Bounds().Dx()*im.Bounds().Dy())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = [3]uint32{r, g, b}
+			pixelColors[i+j*im.Bounds().Dx()] = [5]uint32{r, g, b, uint32(i) * 2000, uint32(j) * 2000}
 		}
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
-	sumAndCount := make([][4]uint64, clustersCount) // sum of Rs, Gs, Bs and count
+	sumAndCount := make([][6]uint64, clustersCount) // sum of Rs, Gs, Bs and count
 	// TODO: optimize/parallelize
 	for epoch := 0; epoch < 100; epoch++ {
 		for i := 0; i < clustersCount; i++ {
-			sumAndCount[i][0], sumAndCount[i][1], sumAndCount[i][2], sumAndCount[i][3] = 0, 0, 0, 0
+			sumAndCount[i] = [6]uint64{}
 		}
-		for _, pixelColor := range pixelColors {
+		for i, pixelColor := range pixelColors {
 			minCluster := 0
 			minDist := distSquared(pixelColor, clustersCenters[0])
 			for k := 1; k < clustersCount; k++ {
@@ -83,30 +88,37 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 			sumAndCount[minCluster][0] += uint64(pixelColor[0])
 			sumAndCount[minCluster][1] += uint64(pixelColor[1])
 			sumAndCount[minCluster][2] += uint64(pixelColor[2])
-			sumAndCount[minCluster][3]++
+			sumAndCount[minCluster][3] += uint64(i % im.Bounds().Dx())
+			sumAndCount[minCluster][4] += uint64(i / im.Bounds().Dx())
+			sumAndCount[minCluster][5]++
 		}
-		accumChange := uint32(0)
+		// accumChange := uint32(0)
 		for i := 0; i < clustersCount; i++ {
-			count := sumAndCount[i][3]
+			count := sumAndCount[i][5]
 			if count == 0 {
 				continue
 			}
-			newR, newG, newB := uint32(sumAndCount[i][0]/count), uint32(sumAndCount[i][1]/count), uint32(sumAndCount[i][2]/count)
-			accumChange += absDiff(newR, clustersCenters[i][0]) + absDiff(newG, clustersCenters[i][1]) + absDiff(newB, clustersCenters[i][2])
-			clustersCenters[i][0], clustersCenters[i][1], clustersCenters[i][2] = newR, newG, newB
+			// newR, newG, newB := uint32(sumAndCount[i][0]/count), uint32(sumAndCount[i][1]/count), uint32(sumAndCount[i][2]/count)
+			// accumChange += absDiff(newR, clustersCenters[i][0]) + absDiff(newG, clustersCenters[i][1]) + absDiff(newB, clustersCenters[i][2])
+			clustersCenters[i][0] = uint32(sumAndCount[i][0] / count)
+			clustersCenters[i][1] = uint32(sumAndCount[i][1] / count)
+			clustersCenters[i][2] = uint32(sumAndCount[i][2] / count)
+			clustersCenters[i][3] = uint32(sumAndCount[i][3] / count)
+			clustersCenters[i][4] = uint32(sumAndCount[i][4] / count)
 		}
-		if accumChange < 500 {
-			break
-		}
+		// if accumChange < 500 {
+		// 	break
+		// }
 	}
 	filtered_im := image.NewRGBA(im.Bounds())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
+			pixel := [5]uint32{r, g, b, uint32(i), uint32(j)}
 			minCluster := 0
-			minDist := (r-clustersCenters[0][0])*(r-clustersCenters[0][0]) + (g-clustersCenters[0][1])*(g-clustersCenters[0][1]) + (b-clustersCenters[0][2])*(b-clustersCenters[0][2])
+			minDist := distSquared(pixel, clustersCenters[0])
 			for k := 1; k < clustersCount; k++ {
-				dist := (r-clustersCenters[k][0])*(r-clustersCenters[k][0]) + (g-clustersCenters[k][1])*(g-clustersCenters[k][1]) + (b-clustersCenters[k][2])*(b-clustersCenters[k][2])
+				dist := distSquared(pixel, clustersCenters[k])
 				if dist < minDist {
 					minCluster = k
 					minDist = dist

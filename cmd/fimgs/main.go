@@ -126,12 +126,20 @@ func mainRoutine() (ImageFilename, ErrorMessage) {
 			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
 		}
 		return resultImageFilename, EmptyErrorMessage
-	// "lamuse"        "la_muse"
-	// "scream"        "scream"
-	// "wave"          "wave"
-	// "wreck"         "wreck"
-	// "udnie"         "udnie"
-	// "rain_princess" "rain_princess"
+	case "median":
+		if len(os.Args) != 4 {
+			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(ClusterFilterUsage, os.Args[0], os.Args[1]))
+		}
+		windowSize, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Window size number should be number, not %q", os.Args[2]))
+		}
+		sourceImageFilename := ImageFilename(os.Args[3])
+		resultImageFilename = makeResultFilename(sourceImageFilename)
+		if err := fimgs.MedianFilter(string(sourceImageFilename), string(resultImageFilename), windowSize); err != nil {
+			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+		}
+		return resultImageFilename, EmptyErrorMessage
 	case "zcurve":
 		if len(os.Args) != 3 {
 			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1]))

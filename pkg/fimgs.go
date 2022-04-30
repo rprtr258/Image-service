@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"sort"
 )
 
 type Color = [3]int
@@ -143,11 +144,128 @@ func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 	return filtered_im
 }
 
-func ApplyConvolutionFilter(sourceImageFilename string, resultImageFilename string, kernel [][]int) error {
+func ApplyConvolutionFilter(sourceImageFilename, resultImageFilename string, kernel [][]int) error {
 	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
-		return fmt.Errorf("rror occured during loading image:\n%q", err)
+		return fmt.Errorf("error occured during loading image:\n%q", err)
 	}
 	resImage := ApplyConvolution(im, kernel)
+	return saveImage(resImage, resultImageFilename)
+}
+
+func Hsv2Rgb(hsv Color) Color {
+	_h := float64(hsv[0]) / 60
+	_s := float64(hsv[1]) / 100
+	_v := float64(hsv[2]) / 100
+	f := _h - math.Floor(_h)
+	_v *= 255
+	p := _v * (1 - _s)
+	q := _v * (1 - (_s * f))
+	t := _v * (1 - (_s * (1 - f)))
+	__v, __t, __p, __q := int(math.Floor(_v)), int(math.Floor(t)), int(math.Floor(p)), int(math.Floor(q))
+	switch math.Mod(math.Floor(_h), 6) {
+	case 0:
+		return Color{__v, __t, __p}
+	case 1:
+		return Color{__q, __v, __p}
+	case 2:
+		return Color{__p, __v, __t}
+	case 3:
+		return Color{__p, __q, __v}
+	case 4:
+		return Color{__t, __p, __v}
+	case 5:
+		return Color{__v, __p, __q}
+	}
+	return Color{}
+}
+
+func Rgb2Hsv(rgb Color) Color {
+	var s float64
+	r := float64(rgb[0]) / 0xFFFF
+	g := float64(rgb[1]) / 0xFFFF
+	b := float64(rgb[2]) / 0xFFFF
+	min := math.Min(math.Min(r, g), b)
+	v := math.Max(math.Max(r, g), b)
+	diff := v - min
+	diffc := func(c float64) float64 {
+		return (v-c)/6.0/diff + 0.5
+	}
+	if diff == 0 {
+		return Color{0, 0, int(math.Round(v * 100))}
+	} else {
+		s = diff / v
+		rdif := diffc(r)
+		gdif := diffc(g)
+		bdif := diffc(b)
+		var h float64
+		if r == v {
+			h = bdif - gdif
+		} else if g == v {
+			h = (1.0 / 3.0) + rdif - bdif
+		} else if b == v {
+			h = (2.0 / 3.0) + gdif - rdif
+		}
+		if h < 0 {
+			h += 1
+		} else if h > 1 {
+			h -= 1
+		}
+		return Color{
+			int(math.Round(h * 360)),
+			int(math.Round(s * 100)),
+			int(math.Round(v * 100)),
+		}
+	}
+}
+
+func Median(im image.Image, windowSize int) image.Image {
+	halfWindowSize := windowSize / 2
+	himage := image.NewRGBA(im.Bounds())
+	window := make([]Color, windowSize*windowSize)
+	hsvWindow := make([]Color, windowSize*windowSize)
+	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
+		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+			k := 0
+			for ki := -halfWindowSize; ki <= halfWindowSize; ki++ {
+				for kj := -halfWindowSize; kj <= halfWindowSize; kj++ {
+					r, g, b, _ := im.At(
+						min(max(im.Bounds().Min.X, i+ki), im.Bounds().Max.X),
+						min(max(im.Bounds().Min.Y, j+kj), im.Bounds().Max.Y),
+					).RGBA()
+					window[k] = Color{int(r), int(g), int(b)}
+					hsvWindow[k] = Rgb2Hsv(window[k])
+					k++
+				}
+			}
+			sort.SliceStable(hsvWindow, func(i, j int) bool {
+				return hsvWindow[i][0] < hsvWindow[j][0]
+			})
+			// fmt.Println(hsvWindow)
+			h := hsvWindow[len(window)/2][0]
+			sort.SliceStable(hsvWindow, func(i, j int) bool {
+				return hsvWindow[i][1] < hsvWindow[j][1]
+			})
+			s := hsvWindow[len(window)/2][1]
+			sort.SliceStable(hsvWindow, func(i, j int) bool {
+				return hsvWindow[i][2] < hsvWindow[j][2]
+			})
+			v := hsvWindow[len(window)/2][2]
+			c := Hsv2Rgb(Color{h, s, v})
+			himage.Set(i, j, color.RGBA64{uint16(c[0] * 0x100), uint16(c[1] * 0x100), uint16(c[2] * 0x100), 0xFFFF})
+		}
+	}
+	return himage
+}
+
+func MedianFilter(sourceImageFilename, resultImageFilename string, windowSize int) error {
+	if windowSize < 0 || windowSize%2 == 0 {
+		return fmt.Errorf("window size must be positive and odd, but it isn't: %d", windowSize)
+	}
+	im, err := LoadImageFile(sourceImageFilename)
+	if err != nil {
+		return fmt.Errorf("error occured during loading image:\n%q", err)
+	}
+	resImage := Median(im, windowSize)
 	return saveImage(resImage, resultImageFilename)
 }
