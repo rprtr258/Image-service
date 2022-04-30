@@ -85,9 +85,9 @@ func QuadTree(im image.Image, power float64, threshold int) *image.RGBA {
 		minColor[i] = [3]int{int(r), int(g), int(b)}
 		maxColor[i] = [3]int{int(r), int(g), int(b)}
 	}
-	for j := 2; j < imageWidth; j *= 2 {
-		for x := j / 2; x < imageWidth; x += j {
-			for y := j / 2; y < im.Bounds().Dy(); y += j { // TODO: move 2*j upper
+	for j := 1; j < imageWidth; j *= 2 {
+		for x := j; x < imageWidth; x += 2 * j {
+			for y := j; y < im.Bounds().Dy(); y += 2 * j {
 				i := y*imageWidth + x
 				cur := parent(dsuParent, i)
 				if cur/imageWidth == 0 || cur%imageWidth == 0 {
@@ -106,7 +106,7 @@ func QuadTree(im image.Image, power float64, threshold int) *image.RGBA {
 					calcMinColor4(minColor[cur], minColor[up], minColor[left], minColor[upLeft]),
 					calcMaxColor4(maxColor[cur], maxColor[up], maxColor[left], maxColor[upLeft]),
 				)
-				if blockWidth[cur] == j && blockWidth[up] == j && blockWidth[left] == j && blockWidth[upLeft] == j && colDiff < threshold {
+				if blockWidth[up] == blockWidth[cur] && blockWidth[left] == blockWidth[cur] && blockWidth[upLeft] == blockWidth[cur] && colDiff < threshold {
 					merge(dsuParent, blockWidth, minColor, maxColor, upLeft, up, left, cur)
 				} else {
 					continue
