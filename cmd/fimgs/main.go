@@ -17,8 +17,8 @@ const (
 Applies filter to image and saves new image. Available filters:
 Convolution filters:
 	blur, weakblur, emboss, sharpen, edgeenhance, edgedetect1, edgedetect2, horizontallines, verticallines
-Hilbert filters:
-	hilbert, hilbertdarken
+Curve filters:
+	hilbert, hilbertdarken, zcurve
 Other:
 	cluster - clusters colors, required parameters:
 		number of clusters, must be integer and greater than 1
@@ -31,16 +31,19 @@ Example usage:
 	%[1]s emboss girl.png
 	%[1]s cluster 4 rain.jpeg
 	%[1]s quadtree 40000 3.14 girl.png`
+
 	ClusterFilterUsage = `Usage:
 %[1]s %[2]s <number_of_clusters> <source_image_file>
 Applies cluster filter to image and saves new image.
 Example usage:
 	%[1]s %[2]s 5 girl.png`
+
 	ShaderFilterUsage = `Usage:
 %[1]s %[2]s <fragment_shader_source_file> <source_image_file>
 Applies GLSL shader to image and saves new image. Shader file must be valid fragment shader source, see shader_examples for examples.
 Example usage:
 	%[1]s %[2]s shader.glsl girl.png`
+
 	QuadTreeUsage = `Usage:
 %[1]s %[2]s <threshold> <power> <source_image_file>
 Applies quad tree like filter to image and saves new image.
@@ -48,6 +51,7 @@ Applies quad tree like filter to image and saves new image.
 	power must be float greater than 0.0
 Example usage:
 	%[1]s %[2]s 40000 3.14 girl.png`
+
 	SimpleFilterUsage = `Usage:
 %[1]s %[2]s <source_image_file>
 Applies filter to image and saves new image.

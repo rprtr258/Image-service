@@ -12,8 +12,8 @@ fimgs <filter_name> <filter_params> <source_image_file>
 Applies filter to image and saves new image. Available filters:
 Convolution filters:
 	blur, weakblur, emboss, sharpen, edgeenhance, edgedetect1, edgedetect2, horizontallines, verticallines
-Hilbert filters:
-	hilbert, hilbertdarken
+Curve filters:
+	hilbert, hilbertdarken, zcurve
 Other:
 	cluster - clusters colors, required parameters:
 		number of clusters, must be integer and greater than 1
