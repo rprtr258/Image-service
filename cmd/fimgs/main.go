@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rprtr258/fimgs"
+	fimgs "github.com/rprtr258/fimgs/pkg"
 )
 
 type ImageFilename string

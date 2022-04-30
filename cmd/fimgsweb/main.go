@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rprtr258/fimgs"
+	fimgs "github.com/rprtr258/fimgs/pkg"
 )
 
 // TODO: command line application
