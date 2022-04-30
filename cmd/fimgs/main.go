@@ -10,6 +10,7 @@ import (
 	"github.com/rprtr258/fimgs"
 )
 
+// TODO: reduce text
 const (
 	ProgramUsage = `Usage:
 %[1]s <filter_name> <filter_params> <source_image_file>
@@ -120,6 +121,16 @@ func mainRoutine() (string, string) {
 	// "wreck"         "wreck"
 	// "udnie"         "udnie"
 	// "rain_princess" "rain_princess"
+	case "zcurve":
+		if len(os.Args) != 3 {
+			return "", fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1])
+		}
+		sourceImageFilename := os.Args[2]
+		resultImageFilename = makeResultFilename(sourceImageFilename)
+		if err := fimgs.ZCurve(sourceImageFilename, resultImageFilename); err != nil {
+			return "", fmt.Sprintf("Error applying filter:\n%s", err)
+		}
+		return resultImageFilename, ""
 	case "hilbert":
 		if len(os.Args) != 3 {
 			return "", fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1])
