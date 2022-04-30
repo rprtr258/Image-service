@@ -122,14 +122,8 @@ func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 	kernelMin, kernelMax := math.MaxInt, math.MinInt
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-			for k := 0; k < 3; k++ {
-				if R[i][j][k] < kernelMin {
-					kernelMin = R[i][j][k]
-				}
-				if R[i][j][k] > kernelMax {
-					kernelMax = R[i][j][k]
-				}
-			}
+			kernelMin = min4(kernelMin, R[i][j][0], R[i][j][1], R[i][j][2])
+			kernelMax = max4(kernelMax, R[i][j][0], R[i][j][1], R[i][j][2])
 		}
 	}
 	var (
