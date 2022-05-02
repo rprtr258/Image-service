@@ -37,7 +37,6 @@ func downloadImage(url string) (imageFilename string, imageId string, err error)
 	if err != nil {
 		return
 	}
-	// TODO: check for content type to deduce image format
 	var format string
 	switch contentType := r.Header.Get("Content-Type"); contentType {
 	case "image/jpeg":
