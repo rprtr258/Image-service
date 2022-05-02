@@ -31,11 +31,11 @@ func downloadImage(url string) (imageFilename string, imageId string, err error)
 	}
 	resp.Close = true
 	r, err := http.DefaultClient.Do(resp)
-	if r != nil {
-		defer r.Body.Close()
-	}
 	if err != nil {
 		return
+	}
+	if r != nil {
+		defer r.Body.Close()
 	}
 	var format string
 	switch contentType := r.Header.Get("Content-Type"); contentType {
@@ -53,7 +53,7 @@ func downloadImage(url string) (imageFilename string, imageId string, err error)
 		return
 	}
 	if f != nil {
-		defer f.Close() // TODO: is needed?
+		defer f.Close()
 	}
 	_, err = io.Copy(f, r.Body)
 	if err != nil {
