@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,7 +21,6 @@ func generateNewImageId() string {
 	return time.Now().Format("2006-01-02-03-04-05")
 }
 
-// TODO: rewrite paths to paths.join
 // TODO: check if it is actually image, restrict size
 func downloadImage(url string) (imageFilename string, imageId string, err error) {
 	// TODO: cache files by url
@@ -48,7 +48,7 @@ func downloadImage(url string) (imageFilename string, imageId string, err error)
 		err = fmt.Errorf("image format %q is not supported", contentType)
 		return
 	}
-	imageFilename = fmt.Sprintf("img/%s.orig.%s", imageId, format)
+	imageFilename = path.Join("img", fmt.Sprintf("%s.orig.%s", imageId, format))
 	f, err := os.Create(imageFilename)
 	if err != nil {
 		return
@@ -119,7 +119,7 @@ func filterToHandler(f Filter) func(http.ResponseWriter, *http.Request) {
 				renderFilterPage(f.pages_templates(), w, f.templateName(), filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 				return
 			}
-			resultImageFile := fmt.Sprintf("img/%s.res.png", imageId)
+			resultImageFile := path.Join("img", fmt.Sprintf("img/%s.res.png", imageId))
 			err = f.process(sourceImageFilename, resultImageFile, r.PostForm)
 			ff := FilterPageData{
 				FilterName: filterName,
