@@ -346,6 +346,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 }
 
 // TODO: load assets https://github.com/go-gl/example/blob/d71b0d9f823d97c3b5ac2a79fdcdb56ca1677eba/gl41core-cube/cube.go#L322
+// or include at compile time
 func main() {
 	s := &http.Server{
 		Addr:           ":8080",
