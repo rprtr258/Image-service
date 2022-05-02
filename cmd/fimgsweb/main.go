@@ -55,11 +55,8 @@ func downloadImage(url string) (imageFilename string, imageId string, err error)
 	if f != nil {
 		defer f.Close() // TODO: is needed?
 	}
-	data, err := io.ReadAll(r.Body)
+	_, err = io.Copy(f, r.Body)
 	if err != nil {
-		return
-	}
-	if _, err = f.Write(data); err != nil {
 		return
 	}
 	return
