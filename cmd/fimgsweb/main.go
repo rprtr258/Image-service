@@ -26,7 +26,15 @@ func generateNewImageId() string {
 func downloadImage(url string) (imageFilename string, imageId string, err error) {
 	// TODO: cache files by url
 	imageId = generateNewImageId()
-	r, err := http.Get(url)
+	resp, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+	resp.Close = true
+	r, err := http.DefaultClient.Do(resp)
+	if r != nil {
+		defer r.Body.Close()
+	}
 	if err != nil {
 		return
 	}
@@ -43,17 +51,14 @@ func downloadImage(url string) (imageFilename string, imageId string, err error)
 	}
 	imageFilename = fmt.Sprintf("img/%s.orig.%s", imageId, format)
 	f, err := os.Create(imageFilename)
-	defer func() {
-		f.Close()
-	}()
 	if err != nil {
 		return
+	}
+	if f != nil {
+		defer f.Close() // TODO: is needed?
 	}
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		return
-	}
-	if err = r.Body.Close(); err != nil {
 		return
 	}
 	if _, err = f.Write(data); err != nil {

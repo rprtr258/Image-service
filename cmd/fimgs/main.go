@@ -65,6 +65,10 @@ Example usage:
 	%[1]s %[2]s girl.png`
 )
 
+func errorMessagef(format string, items ...any) ErrorMessage {
+	return ErrorMessage(fmt.Sprintf(format, items...))
+}
+
 func makeResultFilename(filename ImageFilename) ImageFilename {
 	nowString := time.Now().Format("2006-01-02-03-04-05")
 	return ImageFilename(fmt.Sprintf("%s.fimgs.%s.png", filename, nowString))
@@ -74,26 +78,26 @@ func makeResultFilename(filename ImageFilename) ImageFilename {
 // TODO: interface not to return string?
 func convolutionFilter(kernel [][]int) (ImageFilename, ErrorMessage) {
 	if len(os.Args) != 3 {
-		return EmptyImageFilename, ErrorMessage(fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1]))
+		return EmptyImageFilename, errorMessagef(SimpleFilterUsage, os.Args[0], os.Args[1])
 	}
 	sourceImageFilename := ImageFilename(os.Args[2])
 	resultImageFilename := makeResultFilename(sourceImageFilename)
 	err := fimgs.ApplyConvolutionFilter(string(sourceImageFilename), string(resultImageFilename), kernel)
 	if err != nil {
-		return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+		return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 	}
 	return resultImageFilename, EmptyErrorMessage
 }
 
 func mainRoutine() (ImageFilename, ErrorMessage) {
 	if len(os.Args) == 1 {
-		return EmptyImageFilename, ErrorMessage(fmt.Sprintf(ProgramUsage, os.Args[0]))
+		return EmptyImageFilename, errorMessagef(ProgramUsage, os.Args[0])
 	}
 	var resultImageFilename ImageFilename
 	// TODO: init filter using os.Args, only then apply
 	switch os.Args[1] {
 	case "--help", "-h":
-		return EmptyImageFilename, ErrorMessage(fmt.Sprintf(ProgramUsage, os.Args[0]))
+		return EmptyImageFilename, errorMessagef(ProgramUsage, os.Args[0])
 	case "blur":
 		return convolutionFilter(fimgs.BLUR_KERNEL)
 	case "weakblur":
@@ -114,101 +118,101 @@ func mainRoutine() (ImageFilename, ErrorMessage) {
 		return convolutionFilter(fimgs.VERTICAL_LINES_KERNEL)
 	case "cluster":
 		if len(os.Args) != 4 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(ClusterFilterUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(ClusterFilterUsage, os.Args[0], os.Args[1])
 		}
 		n_clusters, err := strconv.Atoi(os.Args[2])
 		if err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Clusters number should be number, not %q", os.Args[2]))
+			return EmptyImageFilename, errorMessagef("Clusters number should be number, not %q", os.Args[2])
 		}
 		sourceImageFilename := ImageFilename(os.Args[3])
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ApplyKMeansFilter(string(sourceImageFilename), string(resultImageFilename), n_clusters); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	case "median":
 		if len(os.Args) != 4 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(ClusterFilterUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(ClusterFilterUsage, os.Args[0], os.Args[1])
 		}
 		windowSize, err := strconv.Atoi(os.Args[2])
 		if err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Window size number should be number, not %q", os.Args[2]))
+			return EmptyImageFilename, errorMessagef("Window size number should be number, not %q", os.Args[2])
 		}
 		sourceImageFilename := ImageFilename(os.Args[3])
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.MedianFilter(string(sourceImageFilename), string(resultImageFilename), windowSize); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	case "zcurve":
 		if len(os.Args) != 3 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(SimpleFilterUsage, os.Args[0], os.Args[1])
 		}
 		sourceImageFilename := ImageFilename(os.Args[2])
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ZCurve(string(sourceImageFilename), string(resultImageFilename)); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	case "hilbert":
 		if len(os.Args) != 3 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(SimpleFilterUsage, os.Args[0], os.Args[1])
 		}
 		sourceImageFilename := ImageFilename(os.Args[2])
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertCurve(string(sourceImageFilename), string(resultImageFilename)); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	case "hilbertdarken":
 		if len(os.Args) != 3 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(SimpleFilterUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(SimpleFilterUsage, os.Args[0], os.Args[1])
 		}
 		sourceImageFilename := ImageFilename(os.Args[2])
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.HilbertDarken(string(sourceImageFilename), string(resultImageFilename)); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	case "quadtree":
 		if len(os.Args) != 5 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(QuadTreeUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(QuadTreeUsage, os.Args[0], os.Args[1])
 		}
 		threshold, err := strconv.Atoi(os.Args[2])
 		if err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error parsing threshold: %s", err))
+			return EmptyImageFilename, errorMessagef("Error parsing threshold: %s", err)
 		}
 		power, err := strconv.ParseFloat(os.Args[3], 64)
 		if err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error parsing power: %s", err))
+			return EmptyImageFilename, errorMessagef("Error parsing power: %s", err)
 		}
 		sourceImageFilename := ImageFilename(os.Args[4])
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.QudTreeFilter(string(sourceImageFilename), string(resultImageFilename), power, threshold); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	case "shader":
 		if len(os.Args) != 4 {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf(ShaderFilterUsage, os.Args[0], os.Args[1]))
+			return EmptyImageFilename, errorMessagef(ShaderFilterUsage, os.Args[0], os.Args[1])
 		}
 		fragmentShaderFilename := os.Args[2]
 		sourceImageFilename := ImageFilename(os.Args[3])
 		fragmentShaderFile, err := os.Open(fragmentShaderFilename)
 		if err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("error opening fragment shader source: %q", err))
+			return EmptyImageFilename, errorMessagef("Error opening fragment shader source: %q", err)
 		}
 		fragmentShaderSourceData, err := ioutil.ReadAll(fragmentShaderFile)
 		if err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("error loading fragment shader source: %q", err))
+			return EmptyImageFilename, errorMessagef("Error loading fragment shader source: %q", err)
 		}
 		resultImageFilename = makeResultFilename(sourceImageFilename)
 		if err := fimgs.ShaderFilter(string(sourceImageFilename), string(resultImageFilename), string(fragmentShaderSourceData)); err != nil {
-			return EmptyImageFilename, ErrorMessage(fmt.Sprintf("Error applying filter:\n%s", err))
+			return EmptyImageFilename, errorMessagef("Error applying filter:\n%s", err)
 		}
 		return resultImageFilename, EmptyErrorMessage
 	default:
-		return EmptyImageFilename, ErrorMessage(fmt.Sprintf("unknown command: %q", os.Args[1]))
+		return EmptyImageFilename, errorMessagef("Unknown command: %q", os.Args[1])
 	}
 }
 

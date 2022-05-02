@@ -7,13 +7,14 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"math"
+	"math/rand"
 	"os"
-	"sort"
 )
 
 type Color = [3]int
 
 var (
+	// TODO: flat data layout
 	BLUR_KERNEL = [][]int{
 		{1, 1, 1},
 		{1, 1, 1},
@@ -88,6 +89,7 @@ func saveImage(im image.Image, imageFilename string) (err error) {
 
 func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 	kernelHalfWidth, kernelHalfHeight := len(kernel)/2, len(kernel)/2
+	// TODO: flat data layout
 	R := make([][]Color, im.Bounds().Dx())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		R[i] = make([]Color, im.Bounds().Dy())
@@ -180,7 +182,7 @@ func Hsv2Rgb(hsv Color) Color {
 	return Color{}
 }
 
-func Rgb2Hsv(rgb Color) Color {
+func Rgb2Hsv(rgb Color) (int, int, int) {
 	var s float64
 	r := float64(rgb[0]) / 0xFFFF
 	g := float64(rgb[1]) / 0xFFFF
@@ -192,7 +194,7 @@ func Rgb2Hsv(rgb Color) Color {
 		return (v-c)/6.0/diff + 0.5
 	}
 	if diff == 0 {
-		return Color{0, 0, int(math.Round(v * 100))}
+		return 0, 0, int(math.Round(v * 100))
 	} else {
 		s = diff / v
 		rdif := diffc(r)
@@ -211,11 +213,36 @@ func Rgb2Hsv(rgb Color) Color {
 		} else if h > 1 {
 			h -= 1
 		}
-		return Color{
-			int(math.Round(h * 360)),
-			int(math.Round(s * 100)),
-			int(math.Round(v * 100)),
+		return int(math.Round(h * 360)), int(math.Round(s * 100)), int(math.Round(v * 100))
+	}
+}
+
+func randomPartition(arr []int, l, r int) int {
+	n := r - l
+	pivot := rand.Intn(n)
+	arr[l+pivot], arr[l] = arr[l], arr[l+pivot]
+	x := arr[l]
+	i := l + 1
+	for j := l + 2; j < r; j++ {
+		if arr[j] <= x {
+			arr[i], arr[j] = arr[j], arr[i]
+			i++
 		}
+	}
+	arr[i], arr[l] = arr[l], arr[i]
+	return i
+}
+
+func kthSmallest(arr []int, l, r, k int) int {
+	pos := randomPartition(arr, l, r)
+	leftPartSize := pos - l
+	switch {
+	case leftPartSize == k:
+		return arr[pos]
+	case leftPartSize > k:
+		return kthSmallest(arr, l, pos, k)
+	default:
+		return kthSmallest(arr, pos, r, k-leftPartSize)
 	}
 }
 
@@ -223,7 +250,9 @@ func Median(im image.Image, windowSize int) image.Image {
 	halfWindowSize := windowSize / 2
 	himage := image.NewRGBA(im.Bounds())
 	window := make([]Color, windowSize*windowSize)
-	hsvWindow := make([]Color, windowSize*windowSize)
+	hWindow := make([]int, windowSize*windowSize)
+	sWindow := make([]int, windowSize*windowSize)
+	vWindow := make([]int, windowSize*windowSize)
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			k := 0
@@ -234,23 +263,14 @@ func Median(im image.Image, windowSize int) image.Image {
 						min(max(im.Bounds().Min.Y, j+kj), im.Bounds().Max.Y),
 					).RGBA()
 					window[k] = Color{int(r), int(g), int(b)}
-					hsvWindow[k] = Rgb2Hsv(window[k])
+					hWindow[k], sWindow[k], vWindow[k] = Rgb2Hsv(window[k])
 					k++
 				}
 			}
-			sort.SliceStable(hsvWindow, func(i, j int) bool {
-				return hsvWindow[i][0] < hsvWindow[j][0]
-			})
-			// fmt.Println(hsvWindow)
-			h := hsvWindow[len(window)/2][0]
-			sort.SliceStable(hsvWindow, func(i, j int) bool {
-				return hsvWindow[i][1] < hsvWindow[j][1]
-			})
-			s := hsvWindow[len(window)/2][1]
-			sort.SliceStable(hsvWindow, func(i, j int) bool {
-				return hsvWindow[i][2] < hsvWindow[j][2]
-			})
-			v := hsvWindow[len(window)/2][2]
+			// TODO: somehow sort by color
+			h := kthSmallest(hWindow, 0, len(hWindow), len(hWindow)/2)
+			s := kthSmallest(sWindow, 0, len(sWindow), len(sWindow)/2)
+			v := kthSmallest(vWindow, 0, len(vWindow), len(vWindow)/2)
 			c := Hsv2Rgb(Color{h, s, v})
 			himage.Set(i, j, color.RGBA64{uint16(c[0] * 0x100), uint16(c[1] * 0x100), uint16(c[2] * 0x100), 0xFFFF})
 		}

@@ -1,5 +1,6 @@
 *.jpg
 *.png
+*.jpeg
 # Static files
 img/*png
 img/*jpg
