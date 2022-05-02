@@ -28,4 +28,12 @@ Example usage:
 	fimgs quadtree 40000 3.14 girl.png
 ```
 
-TODO: add image examples (they are in img/static, I just need to add them here)
+||||||||
+|-|-|-|-|-|-|-|
+|![](img/static/orig.png)|![](img/static/blur.png)|![](img/static/cluster.png)|![](img/static/edgedetect1.png)|![](img/static/edgedetect2.png)|![](img/static/edgeenhance.png)|![](img/static/emboss.png)|
+|orig|blur|cluster|edgedetect1|edgedetect2|edgeenhance|emboss|
+|![](img/static/hilbert.png)|![](img/static/hilbertdarken.png)|![](img/static/horizontallines.png)|![](img/static/median.png)|![](img/static/quadtree.png)|![](img/static/shader_rgb.png)|![](img/static/sharpen.png)|
+|hilbert|hilbertdarken|horizontallines|median|quadtree|shader/rgb|sharpen|
+|![](img/static/verticallines.png)|![](img/static/weakblur.png)|![](img/static/zcurve.png)|||||
+|verticallines|weakblur|zcurve|||||
+
