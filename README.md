@@ -28,12 +28,12 @@ Example usage:
 	fimgs quadtree 40000 3.14 girl.png
 ```
 
-||||||||
-|-|-|-|-|-|-|-|
-|![](img/static/orig.png)|![](img/static/blur.png)|![](img/static/cluster.png)|![](img/static/edgedetect1.png)|![](img/static/edgedetect2.png)|![](img/static/edgeenhance.png)|![](img/static/emboss.png)|
-|orig|blur|cluster|edgedetect1|edgedetect2|edgeenhance|emboss|
-|![](img/static/hilbert.png)|![](img/static/hilbertdarken.png)|![](img/static/horizontallines.png)|![](img/static/median.png)|![](img/static/quadtree.png)|![](img/static/shader_rgb.png)|![](img/static/sharpen.png)|
-|hilbert|hilbertdarken|horizontallines|median|quadtree|shader/rgb|sharpen|
-|![](img/static/verticallines.png)|![](img/static/weakblur.png)|![](img/static/zcurve.png)|||||
-|verticallines|weakblur|zcurve|||||
+|||||||
+|-|-|-|-|-|-|
+|![](img/static/orig.png)|![](img/static/blur.png)|![](img/static/cluster.png)|![](img/static/edgedetect1.png)|![](img/static/edgedetect2.png)|![](img/static/edgeenhance.png)|
+|orig|blur|cluster|edgedetect1|edgedetect2|edgeenhance|
+|![](img/static/emboss.png)|![](img/static/hilbert.png)|![](img/static/hilbertdarken.png)|![](img/static/horizontallines.png)|![](img/static/median.png)|![](img/static/quadtree.png)|
+|emboss|hilbert|hilbertdarken|horizontallines|median|quadtree|
+|![](img/static/shader_rgb.png)|![](img/static/sharpen.png)|![](img/static/verticallines.png)|![](img/static/weakblur.png)|![](img/static/zcurve.png)|||||
+|shader/rgb|sharpen|verticallines|weakblur|zcurve|||||
 
