@@ -53,8 +53,12 @@ func initClusterCenters(pixelColors [][3]int64, clustersCount int) [][3]int64 {
 }
 
 func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
+	sumAndCount := make([]int64, clustersCount*4) // count and sum of Rs, Gs, Bs
 	for epoch := 0; epoch < 300; epoch++ {
-		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
+		sumAndCount[0] = 0
+		for i := 1; i < len(sumAndCount); i *= 2 {
+			copy(sumAndCount[i:], sumAndCount[:i])
+		}
 		for _, pixelColor := range pixelColors {
 			minCluster := 0
 			minDist := minkowskiiDist(pixelColor[:], clustersCenters[0][:])
@@ -65,22 +69,22 @@ func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 					minDist = newDist
 				}
 			}
-			sumAndCount[minCluster*4+0] += pixelColor[0]
-			sumAndCount[minCluster*4+1] += pixelColor[1]
-			sumAndCount[minCluster*4+2] += pixelColor[2]
-			sumAndCount[minCluster*4+3]++
+			sumAndCount[minCluster*4+0]++
+			sumAndCount[minCluster*4+1] += pixelColor[0]
+			sumAndCount[minCluster*4+2] += pixelColor[1]
+			sumAndCount[minCluster*4+3] += pixelColor[2]
 		}
 		movement := int64(0)
 		for i := 0; i < clustersCount; i++ {
-			count := sumAndCount[i*4+3]
+			count := sumAndCount[i*4+0]
 			if count == 0 {
 				continue
 			}
-			sumAndCount[i*4+0] /= count
 			sumAndCount[i*4+1] /= count
 			sumAndCount[i*4+2] /= count
-			movement += minkowskiiDist(clustersCenters[i][:], sumAndCount[i*4:i*4+4])
-			copy(clustersCenters[i][:], sumAndCount[i*4:i*4+4])
+			sumAndCount[i*4+3] /= count
+			movement += minkowskiiDist(clustersCenters[i][:], sumAndCount[i*4+1:i*4+4])
+			copy(clustersCenters[i][:], sumAndCount[i*4+1:i*4+4])
 		}
 		if movement < 100 {
 			break
