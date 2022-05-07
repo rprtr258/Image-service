@@ -22,15 +22,15 @@ func minkowskiiDist(a, b []int64) int64 {
 func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 	clustersCenters := make([][]int64, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
-	minClusterDistance := make([]float64, len(pixelColors))
-	minClusterDistanceSum := 0.0
+	minClusterDistance := make([]int64, len(pixelColors))
+	minClusterDistanceSum := int64(0)
 	for i, pixelColor := range pixelColors {
-		minClusterDistance[i] = float64(minkowskiiDist(pixelColor, clustersCenters[0]))
+		minClusterDistance[i] = minkowskiiDist(pixelColor, clustersCenters[0])
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
 		var clusterCenter []int64
-		x := rand.Float64() * minClusterDistanceSum
+		x := rand.Int63n(int64(minClusterDistanceSum))
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
@@ -43,7 +43,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 			break
 		}
 		for i, pixelColor := range pixelColors {
-			newDistance := float64(minkowskiiDist(pixelColor, clustersCenters[0]))
+			newDistance := minkowskiiDist(pixelColor, clustersCenters[0])
 			if newDistance < minClusterDistance[i] {
 				minClusterDistanceSum += newDistance - minClusterDistance[i]
 				minClusterDistance[i] = newDistance
