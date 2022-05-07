@@ -83,7 +83,6 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 			clustersCenters[i] = sumAndCount[i*4 : i*4+4]
 		}
 		if movement < 100 {
-			fmt.Println("Epoch: ", epoch)
 			break
 		}
 	}
