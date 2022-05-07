@@ -18,18 +18,18 @@ func minkowskiiDist(a, b []int64) int64 {
 	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2])
 }
 
-func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
-	clustersCenters := make([][]int64, clustersCount)
+func initClusterCenters(pixelColors [][3]int64, clustersCount int) [][3]int64 {
+	clustersCenters := make([][3]int64, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
 	minClusterDistance := make([]int64, len(pixelColors))
 	minClusterDistanceSum := int64(0)
 	for i, pixelColor := range pixelColors {
-		minClusterDistance[i] = minkowskiiDist(pixelColor, clustersCenters[0])
+		minClusterDistance[i] = minkowskiiDist(pixelColor[:], clustersCenters[0][:])
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter []int64
-		x := rand.Int63n(int64(minClusterDistanceSum))
+		var clusterCenter [3]int64
+		x := rand.Int63n(minClusterDistanceSum)
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
@@ -42,7 +42,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 			break
 		}
 		for i, pixelColor := range pixelColors {
-			newDistance := minkowskiiDist(pixelColor, clustersCenters[0])
+			newDistance := minkowskiiDist(pixelColor[:], clustersCenters[0][:])
 			if newDistance < minClusterDistance[i] {
 				minClusterDistanceSum += newDistance - minClusterDistance[i]
 				minClusterDistance[i] = newDistance
@@ -52,14 +52,14 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 	return clustersCenters
 }
 
-func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
+func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 	for epoch := 0; epoch < 300; epoch++ {
 		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
 		for _, pixelColor := range pixelColors {
 			minCluster := 0
-			minDist := minkowskiiDist(pixelColor, clustersCenters[0])
+			minDist := minkowskiiDist(pixelColor[:], clustersCenters[0][:])
 			for k := 1; k < clustersCount; k++ {
-				newDist := minkowskiiDist(pixelColor, clustersCenters[k])
+				newDist := minkowskiiDist(pixelColor[:], clustersCenters[k][:])
 				if newDist < minDist {
 					minCluster = k
 					minDist = newDist
@@ -79,8 +79,8 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 			sumAndCount[i*4+0] /= count
 			sumAndCount[i*4+1] /= count
 			sumAndCount[i*4+2] /= count
-			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4:i*4+4])
-			clustersCenters[i] = sumAndCount[i*4 : i*4+4]
+			movement += minkowskiiDist(clustersCenters[i][:], sumAndCount[i*4:i*4+4])
+			copy(clustersCenters[i][:], sumAndCount[i*4:i*4+4])
 		}
 		if movement < 100 {
 			break
@@ -89,12 +89,12 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 }
 
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
-	pixelColors := make([][]int64, im.Bounds().Dx()*im.Bounds().Dy())
+	pixelColors := make([][3]int64, im.Bounds().Dx()*im.Bounds().Dy())
 	mean := [3]int64{}
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = []int64{int64(r), int64(g), int64(b)}
+			pixelColors[i+j*im.Bounds().Dx()] = [3]int64{int64(r), int64(g), int64(b)}
 			mean[0] += int64(r)
 			mean[1] += int64(g)
 			mean[2] += int64(b)
@@ -116,9 +116,9 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			pixel := pixelColors[i+j*im.Bounds().Dx()]
 			minCluster := 0
-			minDist := minkowskiiDist(pixel, clustersCenters[0])
+			minDist := minkowskiiDist(pixel[:], clustersCenters[0][:])
 			for k := 1; k < clustersCount; k++ {
-				dist := minkowskiiDist(pixel, clustersCenters[k])
+				dist := minkowskiiDist(pixel[:], clustersCenters[k][:])
 				if dist < minDist {
 					minCluster = k
 					minDist = dist
