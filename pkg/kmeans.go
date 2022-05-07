@@ -10,11 +10,8 @@ import (
 )
 
 func abs64(x int64) int64 {
-	if x < 0 {
-		return -x
-	} else {
-		return x
-	}
+	mask := x >> 63
+	return (x + mask) ^ mask
 }
 
 func minkowskiiDist(a, b []int64) int64 {
@@ -55,8 +52,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 	return clustersCenters
 }
 
-func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount, imageWidth int) {
-	// TODO: optimize/parallelize
+func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 	for epoch := 0; epoch < 300; epoch++ {
 		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
 		for _, pixelColor := range pixelColors {
@@ -87,6 +83,7 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount, imageWid
 			clustersCenters[i] = sumAndCount[i*4 : i*4+4]
 		}
 		if movement < 100 {
+			fmt.Println("Epoch: ", epoch)
 			break
 		}
 	}
@@ -114,7 +111,7 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
-	kmeansIters(clustersCenters, pixelColors, clustersCount, im.Bounds().Dx())
+	kmeansIters(clustersCenters, pixelColors, clustersCount)
 	filtered_im := image.NewRGBA(im.Bounds())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
