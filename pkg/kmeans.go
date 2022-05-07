@@ -5,6 +5,8 @@ import (
 	"image"
 	"image/color"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 )
 
 func abs64(x int64) int64 {
@@ -15,17 +17,12 @@ func abs64(x int64) int64 {
 	}
 }
 
-func minkowskiiDist(a, b [5]int64) int64 {
-	res := int64(0)
-	for i, ai := range a {
-		di := abs64(ai - b[i])
-		res += di
-	}
-	return res
+func minkowskiiDist(a, b []int64) int64 {
+	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2]) + abs64(a[3]-b[3]) + abs64(a[4]-b[4])
 }
 
-func initClusterCenters(pixelColors [][5]int64, clustersCount int) [][5]int64 {
-	clustersCenters := make([][5]int64, clustersCount)
+func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
+	clustersCenters := make([][]int64, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
 	minClusterDistance := make([]float64, len(pixelColors))
 	minClusterDistanceSum := 0.0
@@ -34,7 +31,7 @@ func initClusterCenters(pixelColors [][5]int64, clustersCount int) [][5]int64 {
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter [5]int64
+		var clusterCenter []int64
 		x := rand.Float64() * minClusterDistanceSum
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
@@ -58,13 +55,54 @@ func initClusterCenters(pixelColors [][5]int64, clustersCount int) [][5]int64 {
 	return clustersCenters
 }
 
+func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount, imageWidth int) {
+	// TODO: optimize/parallelize
+	for epoch := 0; epoch < 300; epoch++ {
+		sumAndCount := make([]int64, clustersCount*6) // sum of Rs, Gs, Bs and count
+		for i, pixelColor := range pixelColors {
+			minCluster := 0
+			minDist := minkowskiiDist(pixelColor, clustersCenters[0])
+			for k := 1; k < clustersCount; k++ {
+				newDist := minkowskiiDist(pixelColor, clustersCenters[k])
+				if newDist < minDist {
+					minCluster = k
+					minDist = newDist
+				}
+			}
+			sumAndCount[minCluster*6+0] += pixelColor[0]
+			sumAndCount[minCluster*6+1] += pixelColor[1]
+			sumAndCount[minCluster*6+2] += pixelColor[2]
+			sumAndCount[minCluster*6+3] += int64(i % imageWidth)
+			sumAndCount[minCluster*6+4] += int64(i / imageWidth)
+			sumAndCount[minCluster*6+5]++
+		}
+		movement := int64(0)
+		for i := 0; i < clustersCount; i++ {
+			count := sumAndCount[i*6+5]
+			if count == 0 {
+				continue
+			}
+			sumAndCount[i*6+0] /= count
+			sumAndCount[i*6+1] /= count
+			sumAndCount[i*6+2] /= count
+			sumAndCount[i*6+3] /= count
+			sumAndCount[i*6+4] /= count
+			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*6:i*6+5])
+			clustersCenters[i] = sumAndCount[i*6 : i*6+5]
+		}
+		if movement < 100 {
+			break
+		}
+	}
+}
+
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
-	pixelColors := make([][5]int64, im.Bounds().Dx()*im.Bounds().Dy())
+	pixelColors := make([][]int64, im.Bounds().Dx()*im.Bounds().Dy())
 	mean := [3]int64{}
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = [5]int64{int64(r), int64(g), int64(b), int64(i * 2000), int64(j * 2000)}
+			pixelColors[i+j*im.Bounds().Dx()] = []int64{int64(r), int64(g), int64(b), int64(i), int64(j)}
 			mean[0] += int64(r)
 			mean[1] += int64(g)
 			mean[2] += int64(b)
@@ -80,41 +118,7 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
-	sumAndCount := make([][6]int64, clustersCount) // sum of Rs, Gs, Bs and count
-	// TODO: optimize/parallelize
-	for epoch := 0; epoch < 100; epoch++ {
-		for i := 0; i < clustersCount; i++ {
-			sumAndCount[i] = [6]int64{}
-		}
-		for i, pixelColor := range pixelColors {
-			minCluster := 0
-			minDist := minkowskiiDist(pixelColor, clustersCenters[0])
-			for k := 1; k < clustersCount; k++ {
-				newDist := minkowskiiDist(pixelColor, clustersCenters[k])
-				if newDist < minDist {
-					minCluster = k
-					minDist = newDist
-				}
-			}
-			sumAndCount[minCluster][0] += pixelColor[0]
-			sumAndCount[minCluster][1] += pixelColor[1]
-			sumAndCount[minCluster][2] += pixelColor[2]
-			sumAndCount[minCluster][3] += int64(i % im.Bounds().Dx())
-			sumAndCount[minCluster][4] += int64(i / im.Bounds().Dx())
-			sumAndCount[minCluster][5]++
-		}
-		for i := 0; i < clustersCount; i++ {
-			count := sumAndCount[i][5]
-			if count == 0 {
-				continue
-			}
-			clustersCenters[i][0] = sumAndCount[i][0] / count
-			clustersCenters[i][1] = sumAndCount[i][1] / count
-			clustersCenters[i][2] = sumAndCount[i][2] / count
-			clustersCenters[i][3] = sumAndCount[i][3] / count
-			clustersCenters[i][4] = sumAndCount[i][4] / count
-		}
-	}
+	kmeansIters(clustersCenters, pixelColors, clustersCount, im.Bounds().Dx())
 	filtered_im := image.NewRGBA(im.Bounds())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
@@ -141,6 +145,11 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 
 // TODO: filter init is also validation?
 func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
+	f, _ := os.Create("cpu.pb")
+	defer f.Close() // error handling omitted for example
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	if clustersCount < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
 	}

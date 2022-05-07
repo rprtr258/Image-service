@@ -89,6 +89,7 @@ func convolutionFilter(kernel [][]int) (ImageFilename, ErrorMessage) {
 	return resultImageFilename, EmptyErrorMessage
 }
 
+// TODO: go flags
 func mainRoutine() (ImageFilename, ErrorMessage) {
 	if len(os.Args) == 1 {
 		return EmptyImageFilename, errorMessagef(ProgramUsage, os.Args[0])
