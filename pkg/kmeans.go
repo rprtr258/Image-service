@@ -4,32 +4,28 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"math/rand"
-	"os"
-	"runtime/pprof"
+
+	"github.com/dhconnelly/rtreego"
 )
 
-func abs64(x int64) int64 {
-	mask := x >> 63
-	return (x + mask) ^ mask
+func minkowskiiDist(a, b []float64) float64 {
+	return math.Abs(a[0]-b[0]) + math.Abs(a[1]-b[1]) + math.Abs(a[2]-b[2])
 }
 
-func minkowskiiDist(a, b []int64) int64 {
-	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2])
-}
-
-func initClusterCenters(pixelColors [][3]int64, clustersCount int) [][3]int64 {
-	clustersCenters := make([][3]int64, clustersCount)
+func initClusterCenters(pixelColors [][]float64, clustersCount int) [][]float64 {
+	clustersCenters := make([][]float64, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
-	minClusterDistance := make([]int64, len(pixelColors))
-	minClusterDistanceSum := int64(0)
+	minClusterDistance := make([]float64, len(pixelColors))
+	minClusterDistanceSum := float64(0)
 	for i, pixelColor := range pixelColors {
 		minClusterDistance[i] = minkowskiiDist(pixelColor[:], clustersCenters[0][:])
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter [3]int64
-		x := rand.Int63n(minClusterDistanceSum)
+		var clusterCenter []float64
+		x := rand.Float64() * minClusterDistanceSum
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
@@ -52,39 +48,39 @@ func initClusterCenters(pixelColors [][3]int64, clustersCount int) [][3]int64 {
 	return clustersCenters
 }
 
-func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
-	sumAndCount := make([]int64, clustersCount*4) // count and sum of Rs, Gs, Bs
-	for epoch := 0; epoch < 300; epoch++ {
-		sumAndCount[0] = 0
-		for i := 1; i < len(sumAndCount); i *= 2 {
-			copy(sumAndCount[i:], sumAndCount[:i])
-		}
-		for _, pixelColor := range pixelColors {
-			minCluster := 0
-			minDist := minkowskiiDist(pixelColor[:], clustersCenters[0][:])
-			for k := 1; k < clustersCount; k++ {
-				newDist := minkowskiiDist(pixelColor[:], clustersCenters[k][:])
-				if newDist < minDist {
-					minCluster = k
-					minDist = newDist
+func kmeansIters(pixelColors, clustersCenters [][]float64, clustersCount int, tr *rtreego.Rtree) {
+	for epoch := 0; epoch < 100; epoch++ {
+		minCluster := make(map[int]int)
+		minDist := make(map[int]float64)
+		for i := 0; i < clustersCount; i++ {
+			for _, x := range tr.SearchIntersect(rtreego.Point(clustersCenters[i]).ToRect(65536.)) {
+				x := x.(*Somewhere)
+				_, ok := minCluster[x.idx]
+				ppp := pixelColors[x.idx]
+				if !ok || minkowskiiDist(ppp, clustersCenters[i][:]) < minDist[x.idx] {
+					minCluster[x.idx] = i
+					minDist[x.idx] = minkowskiiDist(ppp, clustersCenters[i][:])
 				}
 			}
-			sumAndCount[minCluster*4+0]++
-			sumAndCount[minCluster*4+1] += pixelColor[0]
-			sumAndCount[minCluster*4+2] += pixelColor[1]
-			sumAndCount[minCluster*4+3] += pixelColor[2]
 		}
-		movement := int64(0)
+		rgbSum := make([]float64, clustersCount*4)
+		for k, v := range minCluster {
+			rgbSum[v*4+0]++
+			rgbSum[v*4+1] += pixelColors[k][0]
+			rgbSum[v*4+2] += pixelColors[k][1]
+			rgbSum[v*4+3] += pixelColors[k][2]
+		}
+		movement := 0.0
 		for i := 0; i < clustersCount; i++ {
-			count := sumAndCount[i*4+0]
+			count := rgbSum[i*4]
+			r, g, b := rgbSum[i*4+1], rgbSum[i*4+2], rgbSum[i*4+3]
 			if count == 0 {
 				continue
 			}
-			sumAndCount[i*4+1] /= count
-			sumAndCount[i*4+2] /= count
-			sumAndCount[i*4+3] /= count
-			movement += minkowskiiDist(clustersCenters[i][:], sumAndCount[i*4+1:i*4+4])
-			copy(clustersCenters[i][:], sumAndCount[i*4+1:i*4+4])
+			r, g, b = r/count, g/count, b/count
+			p := []float64{float64(r), float64(g), float64(b)}
+			movement += minkowskiiDist(clustersCenters[i][:], p)
+			copy(clustersCenters[i][:], p)
 		}
 		if movement < 100 {
 			break
@@ -92,29 +88,33 @@ func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 	}
 }
 
+type Somewhere struct {
+	pixelColors [][]float64
+	idx         int
+}
+
+func (s Somewhere) Bounds() *rtreego.Rect {
+	return rtreego.Point(s.pixelColors[s.idx]).ToRect(0.0)
+}
+
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
-	pixelColors := make([][3]int64, im.Bounds().Dx()*im.Bounds().Dy())
-	mean := [3]int64{}
+	pixelColors := make([][]float64, im.Bounds().Dx()*im.Bounds().Dy())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = [3]int64{int64(r), int64(g), int64(b)}
-			mean[0] += int64(r)
-			mean[1] += int64(g)
-			mean[2] += int64(b)
+			pixelColors[i+j*im.Bounds().Dx()] = []float64{float64(r), float64(g), float64(b)}
 		}
 	}
-	mean[0] /= int64(len(pixelColors))
-	mean[1] /= int64(len(pixelColors))
-	mean[2] /= int64(len(pixelColors))
+	tr := rtreego.NewTree(3, 5000, 10000)
 	for i := range pixelColors {
-		pixelColors[i][0] -= mean[0]
-		pixelColors[i][1] -= mean[1]
-		pixelColors[i][2] -= mean[2]
+		if i%100 == 0 {
+			tr.Insert(&Somewhere{pixelColors, i})
+		}
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
-	kmeansIters(clustersCenters, pixelColors, clustersCount)
+	// TODO: try to sample mini-batches (random subdatasets)
+	kmeansIters(pixelColors, clustersCenters, clustersCount, tr)
 	filtered_im := image.NewRGBA(im.Bounds())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
@@ -129,9 +129,9 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 				}
 			}
 			filtered_im.Set(i, j, color.RGBA{
-				uint8((clustersCenters[minCluster][0] + mean[0]) / 0x100),
-				uint8((clustersCenters[minCluster][1] + mean[1]) / 0x100),
-				uint8((clustersCenters[minCluster][2] + mean[2]) / 0x100),
+				uint8((clustersCenters[minCluster][0]) / 0x100),
+				uint8((clustersCenters[minCluster][1]) / 0x100),
+				uint8((clustersCenters[minCluster][2]) / 0x100),
 				255,
 			})
 		}
@@ -141,10 +141,10 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 
 // TODO: filter init is also validation?
 func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
-	f, _ := os.Create("cpu.pb")
-	defer f.Close() // error handling omitted for example
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
+	// f, _ := os.Create("cpu.pb")
+	// defer f.Close() // error handling omitted for example
+	// pprof.StartCPUProfile(f)
+	// defer pprof.StopCPUProfile()
 
 	if clustersCount < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
