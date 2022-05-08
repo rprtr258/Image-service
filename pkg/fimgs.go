@@ -15,6 +15,7 @@ import (
 const (
 	ctTrueColor = 2
 	cbTC8       = 6
+	nFilter     = 5
 )
 
 func paeth(a, b, c uint8) uint8 {
@@ -33,24 +34,10 @@ func paeth(a, b, c uint8) uint8 {
 	}
 }
 
-const (
-	ftNone    = 0
-	ftSub     = 1
-	ftUp      = 2
-	ftAverage = 3
-	ftPaeth   = 4
-	nFilter   = 5
-)
-
 const pngHeader = "\x89PNG\r\n\x1a\n"
 
 type encoder struct {
 	w io.Writer
-}
-
-func abs8(d uint8) int {
-	di := int8(d)
-	return int(di ^ (di >> 7))
 }
 
 func writeChunk(w io.Writer, b []byte, name []byte) {
@@ -73,8 +60,20 @@ func (e *encoder) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+func abs8(d uint8) int {
+	di := int8(d)
+	return int(di ^ (di >> 7))
+}
+
 func filter(cr *[nFilter][]byte, pr []byte) int {
-	const bytesPerPixel = 3
+	const (
+		bytesPerPixel = 3
+		ftNone        = 0
+		ftSub         = 1
+		ftUp          = 2
+		ftAverage     = 3
+		ftPaeth       = 4
+	)
 	cdat0 := cr[0][1:]
 	pdat := pr[1:]
 	n := len(cdat0)
@@ -145,11 +144,11 @@ func filter(cr *[nFilter][]byte, pr []byte) int {
 }
 
 func (e *encoder) writeImage(m image.RGBA) {
-	bw := bufio.NewWriterSize(e, 1<<15)
+	const bitsPerPixel = 24
+	bw := bufio.NewWriterSize(e, 1<<17)
 	defer bw.Flush()
 	zw, _ := zlib.NewWriterLevel(bw, zlib.BestSpeed)
 	defer zw.Close()
-	const bitsPerPixel = 24
 	b := m.Bounds()
 	sz := 1 + (bitsPerPixel*b.Dx()+7)/8
 	cr := [nFilter][]uint8{}
@@ -158,10 +157,10 @@ func (e *encoder) writeImage(m image.RGBA) {
 		cr[i][0] = uint8(i)
 	}
 	pr := make([]uint8, sz)
-	for y := b.Min.Y; y < b.Max.Y; y++ {
+	for y := 0; y < b.Dy(); y++ {
 		i := 1
 		cr0 := cr[0]
-		j0 := (y - b.Min.Y) * m.Stride
+		j0 := y * m.Stride
 		j1 := j0 + b.Dx()*4
 		for j := j0; j < j1; j += 4 {
 			copy(cr0[i:i+3], m.Pix[j:j+3])
