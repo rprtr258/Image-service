@@ -6,8 +6,6 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
-	"os"
-	"runtime/pprof"
 )
 
 func makeColorArray(len int) [][]int64 {
@@ -145,11 +143,6 @@ func ApplyKMeans(im image.Image, clustersCount int) image.RGBA {
 
 // TODO: filter init is also validation?
 func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
-	f, _ := os.Create("cpu.pb")
-	defer f.Close() // error handling omitted for example
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-
 	if clustersCount < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
 	}
