@@ -99,7 +99,7 @@ func kthSmallest(arr []int, l, r, k int) int {
 	}
 }
 
-func Median(im image.Image, windowSize int) image.Image {
+func Median(im image.Image, windowSize int) image.RGBA {
 	halfWindowSize := windowSize / 2
 	himage := image.NewRGBA(im.Bounds())
 	window := make([]Color, windowSize*windowSize)
@@ -133,7 +133,7 @@ func Median(im image.Image, windowSize int) image.Image {
 			})
 		}
 	}
-	return himage
+	return *himage
 }
 
 func MedianFilter(sourceImageFilename, resultImageFilename string, windowSize int) error {

@@ -242,7 +242,7 @@ func HilbertCurve(sourceImageFilename, resultImageFilename string) error {
 		return err
 	}
 	tmp := HilbertCurveFilter(im)
-	return saveImage(tmp, resultImageFilename)
+	return saveImage(*tmp, resultImageFilename)
 }
 
 // TODO: extract and make blendings
@@ -260,7 +260,7 @@ func HilbertDarken(sourceImageFilename, resultImageFilename string) error {
 			}
 		}
 	}
-	return saveImage(tmp, resultImageFilename)
+	return saveImage(*tmp, resultImageFilename)
 }
 
 func ZCurveFilter(im image.Image) *image.RGBA {
@@ -281,5 +281,5 @@ func ZCurve(sourceImageFilename, resultImageFilename string) error {
 		return err
 	}
 	tmp := ZCurveFilter(im)
-	return saveImage(tmp, resultImageFilename)
+	return saveImage(*tmp, resultImageFilename)
 }

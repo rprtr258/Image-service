@@ -189,7 +189,7 @@ void main() {
 		Stride: imageWidth * 4,
 		Rect:   image.Rect(0, 0, imageWidth, imageHeight),
 	}
-	if err = saveImage(&image_out, resultImageFilename); err != nil {
+	if err = saveImage(image_out, resultImageFilename); err != nil {
 		return fmt.Errorf("error saving file: %q", err)
 	}
 	return nil

@@ -146,5 +146,5 @@ func QudTreeFilter(sourceImageFilename, resultImageFilename string, power float6
 		return err
 	}
 	tmp := QuadTree(im, power, threshold)
-	return saveImage(tmp, resultImageFilename)
+	return saveImage(*tmp, resultImageFilename)
 }

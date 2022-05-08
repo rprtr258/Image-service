@@ -56,7 +56,7 @@ var (
 	}
 )
 
-func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
+func ApplyConvolution(im image.Image, kernel [][]int) image.RGBA {
 	kernelHalfWidth, kernelHalfHeight := len(kernel)/2, len(kernel)/2
 	// TODO: flat data layout
 	R := make([][]Color, im.Bounds().Dx())
@@ -112,7 +112,7 @@ func ApplyConvolution(im image.Image, kernel [][]int) image.Image {
 			})
 		}
 	}
-	return filtered_im
+	return *filtered_im
 }
 
 func ApplyConvolutionFilter(sourceImageFilename, resultImageFilename string, kernel [][]int) error {
