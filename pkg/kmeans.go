@@ -60,9 +60,13 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 
 func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 	batchMaxSize := int(math.Sqrt(float64(len(pixelColors))))
+	sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
 	for epoch := 0; epoch < 300; epoch++ {
-		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
 		k := rand.Intn(batchMaxSize) + 1
+		sumAndCount[0] = 0
+		for i := 1; i < len(sumAndCount); i *= 2 {
+			copy(sumAndCount[i:], sumAndCount[:i])
+		}
 		for i := k; i < len(pixelColors); i += k {
 			pixelColor := pixelColors[i]
 			minCluster := 0
@@ -89,7 +93,7 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 			sumAndCount[i*4+1] /= count
 			sumAndCount[i*4+2] /= count
 			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4:i*4+4])
-			clustersCenters[i] = sumAndCount[i*4 : i*4+4]
+			copy(clustersCenters[i], sumAndCount[i*4:i*4+4])
 		}
 		if movement < 100 {
 			break
@@ -127,9 +131,9 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 				}
 			}
 			filtered_im.Set(i, j, color.RGBA{
-				uint8((clustersCenters[minCluster][0]) / 0x100),
-				uint8((clustersCenters[minCluster][1]) / 0x100),
-				uint8((clustersCenters[minCluster][2]) / 0x100),
+				uint8((clustersCenters[minCluster][0] & 0xFF00) >> 8),
+				uint8((clustersCenters[minCluster][1] & 0xFF00) >> 8),
+				uint8((clustersCenters[minCluster][2] & 0xFF00) >> 8),
 				255,
 			})
 		}
