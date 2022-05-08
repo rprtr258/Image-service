@@ -75,7 +75,7 @@ type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
 
-type Encoder struct {
+type PngEncoder struct {
 	CompressionLevel CompressionLevel
 	BufferPool       EncoderBufferPool
 }
@@ -88,7 +88,7 @@ type EncoderBufferPool interface {
 type EncoderBuffer encoder
 
 type encoder struct {
-	enc     *Encoder
+	enc     *PngEncoder
 	w       io.Writer
 	m       image.Image
 	cb      int
@@ -111,26 +111,6 @@ const (
 	BestSpeed          CompressionLevel = -2
 	BestCompression    CompressionLevel = -3
 )
-
-type opaquer interface {
-	Opaque() bool
-}
-
-func opaque(m image.Image) bool {
-	if o, ok := m.(opaquer); ok {
-		return o.Opaque()
-	}
-	b := m.Bounds()
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			_, _, _, a := m.At(x, y).RGBA()
-			if a != 0xffff {
-				return false
-			}
-		}
-	}
-	return true
-}
 
 func abs8(d uint8) int {
 	if d < 128 {
@@ -562,12 +542,7 @@ func levelToZlib(l CompressionLevel) int {
 
 func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
 
-func Encode(w io.Writer, m image.Image) error {
-	var e Encoder
-	return e.Encode(w, m)
-}
-
-func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
+func (enc *PngEncoder) Encode(w io.Writer, m image.Image) error {
 	mw, mh := int64(m.Bounds().Dx()), int64(m.Bounds().Dy())
 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
 		return FormatError("invalid image size: " + strconv.FormatInt(mw, 10) + "x" + strconv.FormatInt(mh, 10))
@@ -594,36 +569,7 @@ func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
 	if _, ok := m.(image.PalettedImage); ok {
 		pal, _ = m.ColorModel().(color.Palette)
 	}
-	if pal != nil {
-		if len(pal) <= 2 {
-			e.cb = cbP1
-		} else if len(pal) <= 4 {
-			e.cb = cbP2
-		} else if len(pal) <= 16 {
-			e.cb = cbP4
-		} else {
-			e.cb = cbP8
-		}
-	} else {
-		switch m.ColorModel() {
-		case color.GrayModel:
-			e.cb = cbG8
-		case color.Gray16Model:
-			e.cb = cbG16
-		case color.RGBAModel, color.NRGBAModel, color.AlphaModel:
-			if opaque(m) {
-				e.cb = cbTC8
-			} else {
-				e.cb = cbTCA8
-			}
-		default:
-			if opaque(m) {
-				e.cb = cbTC16
-			} else {
-				e.cb = cbTCA16
-			}
-		}
-	}
+	e.cb = cbTC8
 
 	_, e.err = io.WriteString(w, pngHeader)
 	e.writeIHDR()
@@ -656,7 +602,8 @@ func saveImage(im image.Image, imageFilename string) (err error) {
 		return
 	}
 	defer imageFile.Close()
-	if err = Encode(imageFile, im); err != nil {
+	var e PngEncoder
+	if err = e.Encode(imageFile, im); err != nil {
 		return
 	}
 	return
