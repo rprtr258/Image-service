@@ -45,11 +45,7 @@ const (
 const pngHeader = "\x89PNG\r\n\x1a\n"
 
 type encoder struct {
-	w      io.Writer
-	m      image.RGBA
-	header [8]byte
-	footer [4]byte
-	bw     *bufio.Writer
+	w io.Writer
 }
 
 func abs8(d uint8) int {
@@ -57,21 +53,23 @@ func abs8(d uint8) int {
 	return int(di ^ (di >> 7))
 }
 
-func (e *encoder) writeChunk(b []byte, name []byte) {
+func writeChunk(w io.Writer, b []byte, name []byte) {
 	n := uint32(len(b))
-	binary.BigEndian.PutUint32(e.header[:4], n)
-	copy(e.header[4:8], name[:])
+	header := [8]byte{}
+	binary.BigEndian.PutUint32(header[:4], n)
+	copy(header[4:8], name[:])
 	crc := crc32.NewIEEE()
-	crc.Write(e.header[4:8])
+	crc.Write(header[4:8])
 	crc.Write(b)
-	binary.BigEndian.PutUint32(e.footer[:4], crc.Sum32())
-	e.w.Write(e.header[:8])
-	e.w.Write(b)
-	e.w.Write(e.footer[:4])
+	footer := [4]byte{}
+	binary.BigEndian.PutUint32(footer[:4], crc.Sum32())
+	w.Write(header[:8])
+	w.Write(b)
+	w.Write(footer[:4])
 }
 
 func (e *encoder) Write(b []byte) (int, error) {
-	e.writeChunk(b, []byte("IDAT"))
+	writeChunk(e.w, b, []byte("IDAT"))
 	return len(b), nil
 }
 
@@ -146,11 +144,13 @@ func filter(cr *[nFilter][]byte, pr []byte) int {
 	return bestAndFilter[1]
 }
 
-func (e *encoder) writeImage() {
-	zw, _ := zlib.NewWriterLevel(e.bw, zlib.BestSpeed)
+func (e *encoder) writeImage(m image.RGBA) {
+	bw := bufio.NewWriterSize(e, 1<<15)
+	defer bw.Flush()
+	zw, _ := zlib.NewWriterLevel(bw, zlib.BestSpeed)
 	defer zw.Close()
 	const bitsPerPixel = 24
-	b := e.m.Bounds()
+	b := m.Bounds()
 	sz := 1 + (bitsPerPixel*b.Dx()+7)/8
 	cr := [nFilter][]uint8{}
 	for i := range cr {
@@ -161,10 +161,10 @@ func (e *encoder) writeImage() {
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		i := 1
 		cr0 := cr[0]
-		j0 := (y - b.Min.Y) * e.m.Stride
+		j0 := (y - b.Min.Y) * m.Stride
 		j1 := j0 + b.Dx()*4
 		for j := j0; j < j1; j += 4 {
-			copy(cr0[i:i+3], e.m.Pix[j:j+3])
+			copy(cr0[i:i+3], m.Pix[j:j+3])
 			i += 3
 		}
 		f := filter(&cr, pr)
@@ -174,12 +174,8 @@ func (e *encoder) writeImage() {
 }
 
 func Encode(w io.Writer, m image.RGBA) {
-	e := &encoder{
-		w: w,
-		m: m,
-	}
 	io.WriteString(w, pngHeader)
-	b := e.m.Bounds()
+	b := m.Bounds()
 	tmp := [4 * 256]byte{}
 	binary.BigEndian.PutUint32(tmp[0:4], uint32(b.Dx()))
 	binary.BigEndian.PutUint32(tmp[4:8], uint32(b.Dy()))
@@ -188,11 +184,9 @@ func Encode(w io.Writer, m image.RGBA) {
 	tmp[10] = 0 // default compression method
 	tmp[11] = 0 // default filter method
 	tmp[12] = 0 // non-interlaced
-	e.writeChunk(tmp[:13], []byte("IHDR"))
-	e.bw = bufio.NewWriterSize(e, 1<<15)
-	e.writeImage()
-	e.bw.Flush()
-	e.writeChunk(nil, []byte("IEND"))
+	writeChunk(w, tmp[:13], []byte("IHDR"))
+	(&encoder{w: w}).writeImage(m)
+	writeChunk(w, nil, []byte("IEND"))
 }
 
 type Color = [3]int
