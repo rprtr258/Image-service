@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"compress/zlib"
 	"encoding/binary"
-	"hash"
 	"hash/crc32"
 	"image"
 	"image/color"
@@ -66,32 +65,7 @@ const (
 	nFilter   = 5
 )
 
-const (
-	dsStart = iota
-	dsSeenIHDR
-	dsSeenPLTE
-	dsSeentRNS
-	dsSeenIDAT
-	dsSeenIEND
-)
-
 const pngHeader = "\x89PNG\r\n\x1a\n"
-
-type decoder struct {
-	r              io.Reader
-	img            image.Image
-	crc            hash.Hash32
-	width, height  int
-	depth          int
-	palette        color.Palette
-	cb             int
-	stage          int
-	idatLength     uint32
-	tmp            [3 * 256]byte
-	interlace      int
-	useTransparent bool
-	transparent    [6]byte
-}
 
 type FormatError string
 
