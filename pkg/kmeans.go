@@ -8,11 +8,8 @@ import (
 )
 
 func abs64(x int64) int64 {
-	if x < 0 {
-		return -x
-	} else {
-		return x
-	}
+	mask := x >> 63
+	return (x + mask) ^ mask
 }
 
 func minkowskiiDist(a, b []int64) int64 {
@@ -30,7 +27,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 	}
 	for k := 1; k < clustersCount; k++ {
 		var clusterCenter []int64
-		x := rand.Int63n(int64(minClusterDistanceSum))
+		x := rand.Int63n(minClusterDistanceSum)
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
@@ -95,10 +92,11 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = []int64{int64(r), int64(g), int64(b)}
-			mean[0] += int64(r)
-			mean[1] += int64(g)
-			mean[2] += int64(b)
+			r64, g64, b64 := int64(r), int64(g), int64(b)
+			pixelColors[i+j*im.Bounds().Dx()] = []int64{r64, g64, b64}
+			mean[0] += r64
+			mean[1] += g64
+			mean[2] += b64
 		}
 	}
 	rand.Seed(0)
