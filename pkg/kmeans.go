@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"math/rand"
 )
 
@@ -58,9 +59,12 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 }
 
 func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
+	batchMaxSize := int(math.Sqrt(float64(len(pixelColors))))
 	for epoch := 0; epoch < 300; epoch++ {
 		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
-		for _, pixelColor := range pixelColors {
+		k := rand.Intn(batchMaxSize)
+		for i := k; i < len(pixelColors); i += k {
+			pixelColor := pixelColors[i]
 			minCluster := 0
 			minDist := minkowskiiDist(pixelColor, clustersCenters[0])
 			for k := 1; k < clustersCount; k++ {
