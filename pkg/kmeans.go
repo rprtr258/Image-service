@@ -4,28 +4,33 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"math"
 	"math/rand"
-
-	"github.com/dhconnelly/rtreego"
 )
 
-func minkowskiiDist(a, b []float64) float64 {
-	return math.Abs(a[0]-b[0]) + math.Abs(a[1]-b[1]) + math.Abs(a[2]-b[2])
+func abs64(x int64) int64 {
+	if x < 0 {
+		return -x
+	} else {
+		return x
+	}
 }
 
-func initClusterCenters(pixelColors [][]float64, clustersCount int) [][]float64 {
-	clustersCenters := make([][]float64, clustersCount)
+func minkowskiiDist(a, b []int64) int64 {
+	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2])
+}
+
+func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
+	clustersCenters := make([][]int64, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
-	minClusterDistance := make([]float64, len(pixelColors))
-	minClusterDistanceSum := float64(0)
+	minClusterDistance := make([]int64, len(pixelColors))
+	minClusterDistanceSum := int64(0)
 	for i, pixelColor := range pixelColors {
-		minClusterDistance[i] = minkowskiiDist(pixelColor[:], clustersCenters[0][:])
+		minClusterDistance[i] = minkowskiiDist(pixelColor, clustersCenters[0])
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter []float64
-		x := rand.Float64() * minClusterDistanceSum
+		var clusterCenter []int64
+		x := rand.Int63n(int64(minClusterDistanceSum))
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
@@ -38,7 +43,7 @@ func initClusterCenters(pixelColors [][]float64, clustersCount int) [][]float64 
 			break
 		}
 		for i, pixelColor := range pixelColors {
-			newDistance := minkowskiiDist(pixelColor[:], clustersCenters[0][:])
+			newDistance := minkowskiiDist(pixelColor, clustersCenters[0])
 			if newDistance < minClusterDistance[i] {
 				minClusterDistanceSum += newDistance - minClusterDistance[i]
 				minClusterDistance[i] = newDistance
@@ -48,14 +53,14 @@ func initClusterCenters(pixelColors [][]float64, clustersCount int) [][]float64 
 	return clustersCenters
 }
 
-func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
+func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 	for epoch := 0; epoch < 300; epoch++ {
 		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
 		for _, pixelColor := range pixelColors {
 			minCluster := 0
-			minDist := minkowskiiDist(pixelColor[:], clustersCenters[0][:])
+			minDist := minkowskiiDist(pixelColor, clustersCenters[0])
 			for k := 1; k < clustersCount; k++ {
-				newDist := minkowskiiDist(pixelColor[:], clustersCenters[k][:])
+				newDist := minkowskiiDist(pixelColor, clustersCenters[k])
 				if newDist < minDist {
 					minCluster = k
 					minDist = newDist
@@ -66,7 +71,7 @@ func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 			sumAndCount[minCluster*4+2] += pixelColor[2]
 			sumAndCount[minCluster*4+3]++
 		}
-		movement := 0.0
+		movement := int64(0)
 		for i := 0; i < clustersCount; i++ {
 			count := sumAndCount[i*4+3]
 			if count == 0 {
@@ -75,8 +80,8 @@ func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 			sumAndCount[i*4+0] /= count
 			sumAndCount[i*4+1] /= count
 			sumAndCount[i*4+2] /= count
-			movement += minkowskiiDist(clustersCenters[i][:], sumAndCount[i*4:i*4+4])
-			copy(clustersCenters[i][:], sumAndCount[i*4:i*4+4])
+			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4:i*4+4])
+			clustersCenters[i] = sumAndCount[i*4 : i*4+4]
 		}
 		if movement < 100 {
 			break
@@ -84,41 +89,30 @@ func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 	}
 }
 
-type Somewhere struct {
-	pixelColors [][]float64
-	idx         int
-}
-
-func (s Somewhere) Bounds() *rtreego.Rect {
-	return rtreego.Point(s.pixelColors[s.idx]).ToRect(0.0)
-}
-
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
-	pixelColors := make([][]float64, im.Bounds().Dx()*im.Bounds().Dy())
+	pixelColors := make([][]int64, im.Bounds().Dx()*im.Bounds().Dy())
+	mean := [3]int64{}
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = []float64{float64(r), float64(g), float64(b)}
-		}
-	}
-	tr := rtreego.NewTree(3, 5000, 10000)
-	for i := range pixelColors {
-		if i%100 == 0 {
-			tr.Insert(&Somewhere{pixelColors, i})
+			pixelColors[i+j*im.Bounds().Dx()] = []int64{int64(r), int64(g), int64(b)}
+			mean[0] += int64(r)
+			mean[1] += int64(g)
+			mean[2] += int64(b)
 		}
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
 	// TODO: try to sample mini-batches (random subdatasets)
-	kmeansIters(pixelColors, clustersCenters, clustersCount, tr)
+	kmeansIters(clustersCenters, pixelColors, clustersCount)
 	filtered_im := image.NewRGBA(im.Bounds())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			pixel := pixelColors[i+j*im.Bounds().Dx()]
 			minCluster := 0
-			minDist := minkowskiiDist(pixel[:], clustersCenters[0][:])
+			minDist := minkowskiiDist(pixel, clustersCenters[0])
 			for k := 1; k < clustersCount; k++ {
-				dist := minkowskiiDist(pixel[:], clustersCenters[k][:])
+				dist := minkowskiiDist(pixel, clustersCenters[k])
 				if dist < minDist {
 					minCluster = k
 					minDist = dist
