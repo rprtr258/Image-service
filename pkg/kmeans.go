@@ -96,14 +96,13 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	imageWidth := im.Bounds().Dx()
 	pixelColors := makeColorArray(imageWidth * im.Bounds().Dy())
-	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+	for j := 0; j < im.Bounds().Dy(); j++ {
+		for i := 0; i < im.Bounds().Dx(); i++ {
 			k := i + j*imageWidth
 			r, g, b, _ := im.At(i, j).RGBA()
-			r64, g64, b64 := int64(r), int64(g), int64(b)
-			pixelColors[k][0] = r64
-			pixelColors[k][1] = g64
-			pixelColors[k][2] = b64
+			pixelColors[k][0] = int64(r)
+			pixelColors[k][1] = int64(g)
+			pixelColors[k][2] = int64(b)
 		}
 	}
 	rand.Seed(0)
@@ -111,8 +110,8 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	// TODO: try to sample mini-batches (random subdatasets)
 	kmeansIters(clustersCenters, pixelColors, clustersCount)
 	filtered_im := image.NewRGBA(im.Bounds())
-	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
-		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
+	for j := 0; j < im.Bounds().Dy(); j++ {
+		for i := 0; i < im.Bounds().Dx(); i++ {
 			pixel := pixelColors[i+j*imageWidth]
 			minCluster := 0
 			minDist := minkowskiiDist(pixel, clustersCenters[0])
