@@ -62,7 +62,7 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 	batchMaxSize := int(math.Sqrt(float64(len(pixelColors))))
 	for epoch := 0; epoch < 300; epoch++ {
 		sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
-		k := rand.Intn(batchMaxSize)
+		k := rand.Intn(batchMaxSize) + 1
 		for i := k; i < len(pixelColors); i += k {
 			pixelColor := pixelColors[i]
 			minCluster := 0
