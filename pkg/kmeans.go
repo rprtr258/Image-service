@@ -7,6 +7,15 @@ import (
 	"math/rand"
 )
 
+func makeColorArray(len int) [][]int64 {
+	data := make([]int64, len*3)
+	res := make([][]int64, len)
+	for i := 0; i < len; i++ {
+		res[i] = data[i*3 : i*3+3]
+	}
+	return res
+}
+
 func abs64(x int64) int64 {
 	mask := x >> 63
 	return (x + mask) ^ mask
@@ -17,11 +26,7 @@ func minkowskiiDist(a, b []int64) int64 {
 }
 
 func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
-	clustersCentersData := make([]int64, clustersCount*3)
-	clustersCenters := make([][]int64, clustersCount)
-	for i := 0; i < clustersCount; i++ {
-		clustersCenters[i] = clustersCentersData[i*3 : i*3+3]
-	}
+	clustersCenters := makeColorArray(clustersCount)
 	copy(clustersCenters[0], pixelColors[rand.Intn(len(pixelColors))])
 	minClusterDistance := make([]int64, len(pixelColors))
 	minClusterDistanceSum := int64(0)
@@ -90,18 +95,15 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	imageWidth := im.Bounds().Dx()
-	pixelColorsData := make([]int64, imageWidth*im.Bounds().Dy()*3)
-	pixelColors := make([][]int64, imageWidth*im.Bounds().Dy())
+	pixelColors := makeColorArray(imageWidth * im.Bounds().Dy())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
-			kk := i + j*imageWidth
-			k := kk * 3
+			k := i + j*imageWidth
 			r, g, b, _ := im.At(i, j).RGBA()
 			r64, g64, b64 := int64(r), int64(g), int64(b)
-			pixelColorsData[k+0] = r64
-			pixelColorsData[k+1] = g64
-			pixelColorsData[k+2] = b64
-			pixelColors[kk] = pixelColorsData[k : k+3]
+			pixelColors[k][0] = r64
+			pixelColors[k][1] = g64
+			pixelColors[k][2] = b64
 		}
 	}
 	rand.Seed(0)
