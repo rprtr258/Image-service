@@ -4,28 +4,32 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"math"
 	"math/rand"
-
-	"github.com/dhconnelly/rtreego"
+	"os"
+	"runtime/pprof"
 )
 
-func minkowskiiDist(a, b []float64) float64 {
-	return math.Abs(a[0]-b[0]) + math.Abs(a[1]-b[1]) + math.Abs(a[2]-b[2])
+func abs64(x int64) int64 {
+	mask := x >> 63
+	return (x + mask) ^ mask
 }
 
-func initClusterCenters(pixelColors [][]float64, clustersCount int) [][]float64 {
-	clustersCenters := make([][]float64, clustersCount)
+func minkowskiiDist(a, b []int64) int64 {
+	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2])
+}
+
+func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
+	clustersCenters := make([][]int64, clustersCount)
 	clustersCenters[0] = pixelColors[rand.Intn(len(pixelColors))]
-	minClusterDistance := make([]float64, len(pixelColors))
-	minClusterDistanceSum := float64(0)
+	minClusterDistance := make([]int64, len(pixelColors))
+	minClusterDistanceSum := int64(0)
 	for i, pixelColor := range pixelColors {
 		minClusterDistance[i] = minkowskiiDist(pixelColor, clustersCenters[0])
 		minClusterDistanceSum += minClusterDistance[i]
 	}
 	for k := 1; k < clustersCount; k++ {
-		var clusterCenter []float64
-		x := rand.Float64() * minClusterDistanceSum
+		var clusterCenter []int64
+		x := rand.Int63n(minClusterDistanceSum)
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
@@ -61,18 +65,14 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 					minDist = newDist
 				}
 			}
+			sumAndCount[minCluster*4+0] += pixelColor[0]
+			sumAndCount[minCluster*4+1] += pixelColor[1]
+			sumAndCount[minCluster*4+2] += pixelColor[2]
+			sumAndCount[minCluster*4+3]++
 		}
-		rgbSum := make([]float64, clustersCount*4)
-		for k, v := range minCluster {
-			rgbSum[v*4+0]++
-			rgbSum[v*4+1] += pixelColors[k][0]
-			rgbSum[v*4+2] += pixelColors[k][1]
-			rgbSum[v*4+3] += pixelColors[k][2]
-		}
-		movement := 0.0
+		movement := int64(0)
 		for i := 0; i < clustersCount; i++ {
-			count := rgbSum[i*4]
-			r, g, b := rgbSum[i*4+1], rgbSum[i*4+2], rgbSum[i*4+3]
+			count := sumAndCount[i*4+3]
 			if count == 0 {
 				continue
 			}
@@ -88,37 +88,23 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 	}
 }
 
-type Somewhere struct {
-	pixelColors [][]float64
-	idx         int
-}
-
-func (s Somewhere) Bounds() *rtreego.Rect {
-	return rtreego.Point(s.pixelColors[s.idx]).ToRect(0.0)
-}
-
 func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 	pixelColors := make([][]int64, im.Bounds().Dx()*im.Bounds().Dy())
 	mean := [3]int64{}
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[i+j*im.Bounds().Dx()] = []int64{int64(r), int64(g), int64(b)}
-			mean[0] += int64(r)
-			mean[1] += int64(g)
-			mean[2] += int64(b)
-		}
-	}
-	tr := rtreego.NewTree(3, 5000, 10000)
-	for i := range pixelColors {
-		if i%100 == 0 {
-			tr.Insert(&Somewhere{pixelColors, i})
+			r64, g64, b64 := int64(r), int64(g), int64(b)
+			pixelColors[i+j*im.Bounds().Dx()] = []int64{r64, g64, b64}
+			mean[0] += r64
+			mean[1] += g64
+			mean[2] += b64
 		}
 	}
 	rand.Seed(0)
 	clustersCenters := initClusterCenters(pixelColors, clustersCount)
 	// TODO: try to sample mini-batches (random subdatasets)
-	kmeansIters(pixelColors, clustersCenters, clustersCount, tr)
+	kmeansIters(clustersCenters, pixelColors, clustersCount)
 	filtered_im := image.NewRGBA(im.Bounds())
 	for i := im.Bounds().Min.X; i < im.Bounds().Max.X; i++ {
 		for j := im.Bounds().Min.Y; j < im.Bounds().Max.Y; j++ {
@@ -145,10 +131,10 @@ func ApplyKMeans(im image.Image, clustersCount int) image.Image {
 
 // TODO: filter init is also validation?
 func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
-	// f, _ := os.Create("cpu.pb")
-	// defer f.Close() // error handling omitted for example
-	// pprof.StartCPUProfile(f)
-	// defer pprof.StopCPUProfile()
+	f, _ := os.Create("cpu.pb")
+	defer f.Close() // error handling omitted for example
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
 	if clustersCount < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
