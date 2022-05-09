@@ -28,14 +28,14 @@ func minkowskiiDist(a, b []int64) int64 {
 
 func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 	clustersCenters := makeColorArray(clustersCount)
-	copy(clustersCenters[0], pixelColors[rand.Intn(len(pixelColors))])
+	copy(clustersCenters[clustersCount-1], pixelColors[rand.Intn(len(pixelColors))])
 	minClusterDistance := make([]int64, len(pixelColors))
 	minClusterDistanceSum := int64(0)
 	for i, pixelColor := range pixelColors {
-		minClusterDistance[i] = minkowskiiDist(pixelColor, clustersCenters[0])
+		minClusterDistance[i] = minkowskiiDist(pixelColor, clustersCenters[clustersCount-1])
 		minClusterDistanceSum += minClusterDistance[i]
 	}
-	for k := 1; k < clustersCount; k++ {
+	for k := 0; k < clustersCount-1; k++ {
 		x := rand.Int63n(minClusterDistanceSum)
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
@@ -60,7 +60,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 
 func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 	batchMaxSize := int(math.Sqrt(float64(len(pixelColors))))
-	sumAndCount := make([]int64, clustersCount*4) // sum of Rs, Gs, Bs and count
+	sumAndCount := make([]int64, clustersCount*4) // count and sum of Rs, Gs, Bs
 	for epoch := 0; epoch < 300; epoch++ {
 		k := rand.Intn(batchMaxSize) + 1
 		sumAndCount[0] = 0
@@ -78,22 +78,22 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 					minDist = newDist
 				}
 			}
-			sumAndCount[minCluster*4+0] += pixelColor[0]
-			sumAndCount[minCluster*4+1] += pixelColor[1]
-			sumAndCount[minCluster*4+2] += pixelColor[2]
-			sumAndCount[minCluster*4+3]++
+			sumAndCount[minCluster*4+0]++
+			sumAndCount[minCluster*4+1] += pixelColor[0]
+			sumAndCount[minCluster*4+2] += pixelColor[1]
+			sumAndCount[minCluster*4+3] += pixelColor[2]
 		}
 		movement := int64(0)
 		for i := 0; i < clustersCount; i++ {
-			count := sumAndCount[i*4+3]
+			count := sumAndCount[i*4+0]
 			if count == 0 {
 				continue
 			}
-			sumAndCount[i*4+0] /= count
 			sumAndCount[i*4+1] /= count
 			sumAndCount[i*4+2] /= count
-			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4:i*4+4])
-			copy(clustersCenters[i], sumAndCount[i*4:i*4+4])
+			sumAndCount[i*4+3] /= count
+			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4+1:i*4+4])
+			copy(clustersCenters[i], sumAndCount[i*4+1:i*4+4])
 		}
 		if movement < 100 {
 			break
