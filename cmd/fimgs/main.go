@@ -21,7 +21,7 @@ func main() {
 	var sourceImageFilename string
 	rootCmd := cobra.Command{
 		Use:   "fimgs",
-		Short: "Applies filter to image and saves new image.",
+		Short: "Applies filter to image.",
 		Long:  `Applies filter to image and saves new image.`,
 	}
 	rootCmd.PersistentFlags().StringVarP(&sourceImageFilename, "image", "i", "", "input image filename")
