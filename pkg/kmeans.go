@@ -148,7 +148,7 @@ func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, c
 	}
 	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
-		return fmt.Errorf("error occured while loading image:\n%q", err)
+		return fmt.Errorf("error occured while loading image: %q", err)
 	}
 	filtered_im := ApplyKMeans(im, clustersCount)
 	err = saveImage(filtered_im, resultImageFilename)
