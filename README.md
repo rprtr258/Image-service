@@ -8,6 +8,7 @@ go install github.com/rprtr258/fimgs/cmd/fimgs@latest
 ## Usage
 See `fimgs --help` for usage.
 
+## Examples
 ||||
 |-|-|-|
 |![](img/static/orig.png)|![](img/static/blur.png)|![](img/static/cluster.png)|
