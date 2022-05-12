@@ -16,13 +16,16 @@ func makeResultFilename(filename string) string {
 	return fmt.Sprintf("%s.fimgs.%s.png", filename, nowString)
 }
 
-// TODO: print result filename
 func main() {
 	var sourceImageFilename string
+	var resultImageFilename string
 	rootCmd := cobra.Command{
 		Use:   "fimgs",
 		Short: "Applies filter to image.",
 		Long:  `Applies filter to image and saves new image.`,
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			fmt.Println(resultImageFilename)
+		},
 	}
 	rootCmd.PersistentFlags().StringVarP(&sourceImageFilename, "image", "i", "", "input image filename")
 	rootCmd.MarkPersistentFlagFilename("image", "png", "jpeg", "jpg")
@@ -35,12 +38,13 @@ func main() {
 		Long:  `Cluster colors using KMeans algorithm.`,
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, nClusters)
 		},
 		Example: "fimgs cluster -n 4 girl.png",
 	}
-	clusterCmd.Flags().IntVarP(&nClusters, "nclusters", "n", -1, "number of clusters, must be greater than 1")
+	clusterCmd.Flags().IntVarP(&nClusters, "nclusters", "n", 0, "number of clusters, must be greater than 1")
+    clusterCmd.MarkFlagRequired("nclusters")
 	rootCmd.AddCommand(&clusterCmd)
 
 	var threshold int
@@ -51,7 +55,7 @@ func main() {
 		Long:  `Apply quad tree like filter.`,
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.QudTreeFilter(sourceImageFilename, resultImageFilename, power, threshold)
 		},
 		Example: "fimgs quadtree girl.png",
@@ -75,7 +79,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("Error loading fragment shader source: %q", err)
 			}
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, string(fragmentShaderSourceData))
 		},
 		Example: "fimgs shader -s shader_examples/rgb_coloring.glsl -i girl.png",
@@ -91,7 +95,7 @@ func main() {
 		Long:  `Draws hilbert curve only through points on dark areas.`,
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
 		},
 	}
@@ -103,7 +107,7 @@ func main() {
 		Long:  `Darken(image, hilbert filter).`,
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
 		},
 	}
@@ -115,7 +119,7 @@ func main() {
 		Long:  `Draws Z curve only through points on dark areas.`,
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.ZCurve(sourceImageFilename, resultImageFilename)
 		},
 	}
@@ -128,7 +132,7 @@ func main() {
 		Long:  `Replace each pixel's color with median color of neighbourhood.`,
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resultImageFilename := makeResultFilename(sourceImageFilename)
+			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.MedianFilter(sourceImageFilename, resultImageFilename, windowSize)
 		},
 	}
@@ -153,7 +157,7 @@ func main() {
 			Long:  fmt.Sprintf("Apply %s convolution filter.", filterName),
 			Args:  cobra.MaximumNArgs(0),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				resultImageFilename := makeResultFilename(sourceImageFilename)
+				resultImageFilename = makeResultFilename(sourceImageFilename)
 				return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, kernel)
 			},
 			Example: "fimgs emboss -i girl.png",
