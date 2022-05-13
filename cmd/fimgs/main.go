@@ -44,7 +44,7 @@ func main() {
 		Example: "fimgs cluster -n 4 girl.png",
 	}
 	clusterCmd.Flags().IntVarP(&nClusters, "nclusters", "n", 0, "number of clusters, must be greater than 1")
-    clusterCmd.MarkFlagRequired("nclusters")
+	clusterCmd.MarkFlagRequired("nclusters")
 	rootCmd.AddCommand(&clusterCmd)
 
 	var threshold int
@@ -165,7 +165,6 @@ func main() {
 	}
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
