@@ -5,3 +5,5 @@
 img/*png
 img/*jpg
 img/*jpeg
+# cgo files
+pkg/_obj

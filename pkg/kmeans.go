@@ -1,11 +1,15 @@
 package fimgs
 
+// #cgo CFLAGS: -g -Wall -march=native -O3 -Wconversion
+// #include "fastkmeans.h"
+import "C"
+
 import (
 	"fmt"
 	"image"
 	"image/color"
-	"math"
 	"math/rand"
+	"unsafe"
 )
 
 func makeColorArray(len int) [][]int64 {
@@ -17,13 +21,10 @@ func makeColorArray(len int) [][]int64 {
 	return res
 }
 
-func abs64(x int64) int64 {
-	mask := x >> 63
-	return (x + mask) ^ mask
-}
-
 func minkowskiiDist(a, b []int64) int64 {
-	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2])
+	pa := (*C.long)(unsafe.Pointer(&a[0]))
+	pb := (*C.long)(unsafe.Pointer(&b[0]))
+	return int64(C.fastDist(pa, pb))
 }
 
 func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
@@ -59,49 +60,17 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 }
 
 func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
-	batchMaxSize := int(math.Sqrt(float64(len(pixelColors))))
-	sumAndCount := make([]int64, clustersCount*4) // count and sum of Rs, Gs, Bs
-	for epoch := 0; epoch < 300; epoch++ {
-		k := rand.Intn(batchMaxSize) + 1
-		sumAndCount[0] = 0
-		for i := 1; i < len(sumAndCount); i *= 2 {
-			copy(sumAndCount[i:], sumAndCount[:i])
-		}
-		for i := k; i < len(pixelColors); i += k {
-			pixelColor := pixelColors[i]
-			minCluster := 0
-			minDist := minkowskiiDist(pixelColor, clustersCenters[0])
-			for k := 1; k < clustersCount; k++ {
-				newDist := minkowskiiDist(pixelColor, clustersCenters[k])
-				if newDist < minDist {
-					minCluster = k
-					minDist = newDist
-				}
-			}
-			sumAndCount[minCluster*4+0]++
-			sumAndCount[minCluster*4+1] += pixelColor[0]
-			sumAndCount[minCluster*4+2] += pixelColor[1]
-			sumAndCount[minCluster*4+3] += pixelColor[2]
-		}
-		movement := int64(0)
-		for i := 0; i < clustersCount; i++ {
-			count := sumAndCount[i*4+0]
-			if count == 0 {
-				continue
-			}
-			sumAndCount[i*4+1] /= count
-			sumAndCount[i*4+2] /= count
-			sumAndCount[i*4+3] /= count
-			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4+1:i*4+4])
-			copy(clustersCenters[i], sumAndCount[i*4+1:i*4+4])
-		}
-		if movement < 100 {
-			break
-		}
-	}
+	C.kmeansIters(
+		(*[3]C.long)(unsafe.Pointer(&clustersCenters[0][0])),
+		C.int(clustersCount),
+		(*[3]C.long)(unsafe.Pointer(&pixelColors[0][0])),
+		C.int(len(pixelColors)),
+	)
 }
 
 func ApplyKMeans(im image.Image, clustersCount int) image.RGBA {
+	// TODO: use one or another kMeansIters depending on having AVX2
+	// fmt.Println("has AVX2: ", cpuid.CPU.Supports(cpuid.AVX2))
 	imageWidth := im.Bounds().Dx()
 	pixelColors := makeColorArray(imageWidth * im.Bounds().Dy())
 	for j := 0; j < im.Bounds().Dy(); j++ {
