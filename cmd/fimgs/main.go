@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 
 	fimgs "github.com/rprtr258/fimgs/pkg"
 )
@@ -20,126 +20,136 @@ func makeResultFilename(filename string) string {
 func main() {
 	var sourceImageFilename string
 	var resultImageFilename string
-	rootCmd := cobra.Command{
-		Use:   "fimgs",
-		Short: "Applies filter to image.",
-		Long:  `Applies filter to image and saves new image.`,
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			fmt.Println(resultImageFilename)
-		},
-	}
-	rootCmd.PersistentFlags().StringVarP(&sourceImageFilename, "image", "i", "", "input image filename")
-	rootCmd.MarkPersistentFlagFilename("image", "png", "jpeg", "jpg")
-	rootCmd.MarkPersistentFlagRequired("image")
 
 	var nClusters int
-	clusterCmd := cobra.Command{
-		Use:   "cluster",
-		Short: "Cluster colors.",
-		Long:  `Cluster colors using KMeans algorithm.`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	clusterCmd := &cli.Command{
+		Name:  "cluster",
+		Usage: "Cluster colors.",
+		UsageText: `Cluster colors using KMeans algorithm.
+Example:
+	fimgs cluster -n 4 girl.png`,
+		Flags: []cli.Flag{&cli.IntFlag{
+			Name:        "nclusters",
+			Usage:       "number of clusters, must be greater than 1",
+			Aliases:     []string{"n"},
+			Required:    true,
+			Destination: &nClusters,
+		}},
+		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, nClusters)
 		},
-		Example: "fimgs cluster -n 4 girl.png",
 	}
-	clusterCmd.Flags().IntVarP(&nClusters, "nclusters", "n", 0, "number of clusters, must be greater than 1")
-	clusterCmd.MarkFlagRequired("nclusters")
-	rootCmd.AddCommand(&clusterCmd)
 
 	var threshold int
 	var power float64
-	quadTreeCmd := cobra.Command{
-		Use:   "quadtree",
-		Short: "Quad tree filter.",
-		Long:  `Apply quad tree like filter.`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	quadTreeCmd := &cli.Command{
+		Name:  "quadtree",
+		Usage: "Quad tree filter.",
+		UsageText: `Apply quad tree like filter.
+Example:
+	fimgs quadtree girl.png`,
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:        "threshold",
+				Aliases:     []string{"t"},
+				Usage:       "must be from 0 to 65536 exclusive",
+				Value:       32000,
+				Destination: &threshold,
+			},
+			&cli.Float64Flag{
+				Name:        "power",
+				Aliases:     []string{"p"},
+				Usage:       "must be greater than 0.0",
+				Value:       2.0,
+				Destination: &power,
+			},
+		},
+		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.QudTreeFilter(sourceImageFilename, resultImageFilename, power, threshold)
 		},
-		Example: "fimgs quadtree girl.png",
 	}
-	quadTreeCmd.Flags().IntVarP(&threshold, "threshold", "t", 32000, "must be from 0 to 65536 exclusive")
-	quadTreeCmd.Flags().Float64VarP(&power, "power", "p", 2.0, "must be greater than 0.0")
-	rootCmd.AddCommand(&quadTreeCmd)
 
 	var fragmentShaderFilename string
-	shaderCmd := cobra.Command{
-		Use:   "shader",
-		Short: "Shader filter.",
-		Long:  `Apply GLSL filter to image.`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	shaderCmd := &cli.Command{
+		Name:  "shader",
+		Usage: "Shader filter.",
+		UsageText: `Apply GLSL filter to image.
+Example:
+	fimgs shader -s shader_examples/rgb_coloring.glsl -i girl.png`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:      "shader",
+				Aliases:   []string{"s"},
+				Usage:     "shader file, must be valid fragment shader source, see shader_examples directory for examples",
+				Required:  true,
+				TakesFile: true,
+			},
+		},
+		Action: func(*cli.Context) error {
 			fragmentShaderFile, err := os.Open(fragmentShaderFilename)
 			if err != nil {
-				return fmt.Errorf("Error opening fragment shader source: %q", err)
+				return fmt.Errorf("error opening fragment shader source file: %w", err)
 			}
 			fragmentShaderSourceData, err := io.ReadAll(fragmentShaderFile)
 			if err != nil {
-				return fmt.Errorf("Error loading fragment shader source: %q", err)
+				return fmt.Errorf("error loading fragment shader source: %w", err)
 			}
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, string(fragmentShaderSourceData))
 		},
-		Example: "fimgs shader -s shader_examples/rgb_coloring.glsl -i girl.png",
 	}
-	shaderCmd.Flags().StringVarP(&fragmentShaderFilename, "shader", "s", "", "shader file, must be valid fragment shader source, see shader_examples directory for examples")
-	shaderCmd.MarkFlagFilename("shader", "glsl")
-	shaderCmd.MarkFlagRequired("shader")
-	rootCmd.AddCommand(&shaderCmd)
 
-	hilbertCmd := cobra.Command{
-		Use:   "hilbert",
-		Short: "Hilbert curve filter.",
-		Long:  `Draws hilbert curve only through points on dark areas.`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	hilbertCmd := &cli.Command{
+		Name:      "hilbert",
+		Usage:     "Hilbert curve filter.",
+		UsageText: `Draws hilbert curve only through points on dark areas.`,
+		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
 		},
 	}
-	rootCmd.AddCommand(&hilbertCmd)
 
-	hilbertDarkenCmd := cobra.Command{
-		Use:   "hilbertdarken",
-		Short: "Hilbert darken curve filter.",
-		Long:  `Darken(image, hilbert filter).`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	hilbertDarkenCmd := &cli.Command{
+		Name:      "hilbertdarken",
+		Usage:     "Hilbert darken curve filter.",
+		UsageText: `Darken(image, hilbert filter).`,
+		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
 		},
 	}
-	rootCmd.AddCommand(&hilbertDarkenCmd)
 
-	zcurveCmd := cobra.Command{
-		Use:   "zcurve",
-		Short: "Z curve filter.",
-		Long:  `Draws Z curve only through points on dark areas.`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	zcurveCmd := &cli.Command{
+		Name:      "zcurve",
+		Usage:     "Z curve filter.",
+		UsageText: `Draws Z curve only through points on dark areas.`,
+		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.ZCurve(sourceImageFilename, resultImageFilename)
 		},
 	}
-	rootCmd.AddCommand(&zcurveCmd)
 
 	var windowSize int
-	medianCmd := cobra.Command{
-		Use:   "median",
-		Short: "Median filter.",
-		Long:  `Replace each pixel's color with median color of neighbourhood.`,
-		Args:  cobra.MaximumNArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	medianCmd := &cli.Command{
+		Name:      "median",
+		Usage:     "Median filter.",
+		UsageText: `Replace each pixel's color with median color of neighbourhood.`,
+		Flags: []cli.Flag{&cli.IntFlag{
+			Name:        "window",
+			Aliases:     []string{"w"},
+			Usage:       "window size, must be odd and positive",
+			Value:       5,
+			Destination: &windowSize,
+		}},
+		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
 			return fimgs.MedianFilter(sourceImageFilename, resultImageFilename, windowSize)
 		},
 	}
-	medianCmd.Flags().IntVarP(&windowSize, "window", "w", 5, "window size, must be odd and positive")
-	rootCmd.AddCommand(&medianCmd)
 
+	convolutionCmds := []*cli.Command{}
 	// TODO: allow to specify custom kernel
 	for filterName, kernel := range map[string][][]int{
 		"blur":            fimgs.BLUR_KERNEL,
@@ -152,20 +162,50 @@ func main() {
 		"horizontallines": fimgs.HORIZONTAL_LINES_KERNEL,
 		"verticallines":   fimgs.VERTICAL_LINES_KERNEL,
 	} {
-		rootCmd.AddCommand(&cobra.Command{
-			Use:   filterName,
-			Short: fmt.Sprintf("%s filter.", strings.Title(filterName)),
-			Long:  fmt.Sprintf("Apply %s convolution filter.", filterName),
-			Args:  cobra.MaximumNArgs(0),
-			RunE: func(cmd *cobra.Command, args []string) error {
+		convolutionCmds = append(convolutionCmds, &cli.Command{
+			Name:  filterName,
+			Usage: fmt.Sprintf("%s filter.", strings.Title(filterName)),
+			UsageText: fmt.Sprintf(`Apply %s convolution filter.
+Example:
+	fimgs emboss -i girl.png`, filterName),
+			Action: func(*cli.Context) error {
 				resultImageFilename = makeResultFilename(sourceImageFilename)
 				return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, kernel)
 			},
-			Example: "fimgs emboss -i girl.png",
 		})
 	}
 
-	if err := rootCmd.Execute(); err != nil {
+	app := cli.App{
+		Name:      "fimgs",
+		Usage:     "Applies filter to image.",
+		UsageText: "Applies filter to image and saves new image.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "image",
+				Aliases:     []string{"i"},
+				Destination: &sourceImageFilename,
+				Required:    true,
+				TakesFile:   true,
+				Usage:       "input image filename",
+				// TODO: validate available extensions ("image", "png", "jpeg", "jpg")
+			},
+		},
+		Commands: append(
+			convolutionCmds,
+			clusterCmd,
+			quadTreeCmd,
+			shaderCmd,
+			hilbertCmd,
+			hilbertDarkenCmd,
+			zcurveCmd,
+			medianCmd,
+		),
+		After: func(*cli.Context) error {
+			fmt.Println(resultImageFilename)
+			return nil
+		},
+	}
+	if err := app.Run(os.Args); err != nil {
 		os.Exit(1)
 	}
 }
