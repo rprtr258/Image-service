@@ -7,36 +7,7 @@ go install github.com/rprtr258/fimgs/cmd/fimgs@latest
 
 ## Usage
 ```
-NAME:
-   fimgs - Applies filter to image.
-
-USAGE:
-   Applies filter to image and saves new image.
-
-COMMANDS:
-   sharpen          Sharpen filter.
-   edgeenhance      Edgeenhance filter.
-   edgedetect1      Edgedetect1 filter.
-   verticallines    Verticallines filter.
-   horizontallines  Horizontallines filter.
-   blur             Blur filter.
-   weakblur         Weakblur filter.
-   emboss           Emboss filter.
-   edgedetect2      Edgedetect2 filter.
-   cluster          Cluster colors.
-   quadtree         Quad tree filter.
-   shader           Shader filter.
-   hilbert          Hilbert curve filter.
-   hilbertdarken    Hilbert darken curve filter.
-   zcurve           Z curve filter.
-   median           Median filter.
-   help, h          Shows a list of commands or help for one command
-
-GLOBAL OPTIONS:
-   --help, -h               show help (default: false)
-   --image value, -i value  input image filename
-   
-
+{{usage}}
 ```
 
 ## Examples
