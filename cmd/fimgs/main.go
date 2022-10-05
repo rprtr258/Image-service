@@ -24,7 +24,7 @@ func main() {
 	var nClusters int
 	clusterCmd := &cli.Command{
 		Name:  "cluster",
-		Usage: "Cluster colors.",
+		Usage: "Cluster colors",
 		UsageText: `Cluster colors using KMeans algorithm.
 Example:
 	fimgs cluster -n 4 girl.png`,
@@ -45,7 +45,7 @@ Example:
 	var power float64
 	quadTreeCmd := &cli.Command{
 		Name:  "quadtree",
-		Usage: "Quad tree filter.",
+		Usage: "Quad tree filter",
 		UsageText: `Apply quad tree like filter.
 Example:
 	fimgs quadtree girl.png`,
@@ -74,7 +74,7 @@ Example:
 	var fragmentShaderFilename string
 	shaderCmd := &cli.Command{
 		Name:  "shader",
-		Usage: "Shader filter.",
+		Usage: "Shader filter",
 		UsageText: `Apply GLSL filter to image.
 Example:
 	fimgs shader -s shader_examples/rgb_coloring.glsl -i girl.png`,
@@ -103,7 +103,7 @@ Example:
 
 	hilbertCmd := &cli.Command{
 		Name:      "hilbert",
-		Usage:     "Hilbert curve filter.",
+		Usage:     "Hilbert curve filter",
 		UsageText: `Draws hilbert curve only through points on dark areas.`,
 		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
@@ -113,7 +113,7 @@ Example:
 
 	hilbertDarkenCmd := &cli.Command{
 		Name:      "hilbertdarken",
-		Usage:     "Hilbert darken curve filter.",
+		Usage:     "Hilbert darken curve filter",
 		UsageText: `Darken(image, hilbert filter).`,
 		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
@@ -123,7 +123,7 @@ Example:
 
 	zcurveCmd := &cli.Command{
 		Name:      "zcurve",
-		Usage:     "Z curve filter.",
+		Usage:     "Z curve filter",
 		UsageText: `Draws Z curve only through points on dark areas.`,
 		Action: func(*cli.Context) error {
 			resultImageFilename = makeResultFilename(sourceImageFilename)
@@ -134,7 +134,7 @@ Example:
 	var windowSize int
 	medianCmd := &cli.Command{
 		Name:      "median",
-		Usage:     "Median filter.",
+		Usage:     "Median filter",
 		UsageText: `Replace each pixel's color with median color of neighbourhood.`,
 		Flags: []cli.Flag{&cli.IntFlag{
 			Name:        "window",
@@ -164,7 +164,7 @@ Example:
 	} {
 		convolutionCmds = append(convolutionCmds, &cli.Command{
 			Name:  filterName,
-			Usage: fmt.Sprintf("%s filter.", strings.Title(filterName)),
+			Usage: fmt.Sprintf("%s filter", strings.Title(filterName)),
 			UsageText: fmt.Sprintf(`Apply %s convolution filter.
 Example:
 	fimgs emboss -i girl.png`, filterName),
@@ -177,8 +177,8 @@ Example:
 
 	app := cli.App{
 		Name:      "fimgs",
-		Usage:     "Applies filter to image.",
-		UsageText: "Applies filter to image and saves new image.",
+		Usage:     "Applies filter to image",
+		UsageText: "Applies filter to image and saves new image",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "image",
