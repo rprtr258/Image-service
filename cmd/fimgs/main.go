@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
 
-	fimgs "github.com/rprtr258/fimgs/pkg"
 	"github.com/spf13/cobra"
+
+	fimgs "github.com/rprtr258/fimgs/pkg"
 )
 
 func makeResultFilename(filename string) string {
@@ -75,7 +76,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("Error opening fragment shader source: %q", err)
 			}
-			fragmentShaderSourceData, err := ioutil.ReadAll(fragmentShaderFile)
+			fragmentShaderSourceData, err := io.ReadAll(fragmentShaderFile)
 			if err != nil {
 				return fmt.Errorf("Error loading fragment shader source: %q", err)
 			}
