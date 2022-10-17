@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -80,11 +81,12 @@ Example:
 	fimgs shader -s shader_examples/rgb_coloring.glsl -i girl.png`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:      "shader",
-				Aliases:   []string{"s"},
-				Usage:     "shader file, must be valid fragment shader source, see shader_examples directory for examples",
-				Required:  true,
-				TakesFile: true,
+				Name:        "shader",
+				Aliases:     []string{"s"},
+				Usage:       "shader file, must be valid fragment shader source, see shader_examples directory for examples",
+				Required:    true,
+				TakesFile:   true,
+				Destination: &fragmentShaderFilename,
 			},
 		},
 		Action: func(*cli.Context) error {
@@ -162,12 +164,14 @@ Example:
 		"horizontallines": fimgs.HORIZONTAL_LINES_KERNEL,
 		"verticallines":   fimgs.VERTICAL_LINES_KERNEL,
 	} {
+		filterName := filterName
+		kernel := kernel
 		convolutionCmds = append(convolutionCmds, &cli.Command{
 			Name:  filterName,
 			Usage: fmt.Sprintf("%s filter", strings.Title(filterName)),
-			UsageText: fmt.Sprintf(`Apply %s convolution filter.
+			UsageText: fmt.Sprintf(`Apply %[1]s convolution filter.
 Example:
-	fimgs emboss -i girl.png`, filterName),
+	fimgs %[1]s -i girl.png`, filterName),
 			Action: func(*cli.Context) error {
 				resultImageFilename = makeResultFilename(sourceImageFilename)
 				return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, kernel)
@@ -206,6 +210,6 @@ Example:
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
-		os.Exit(1)
+		log.Fatal(err.Error())
 	}
 }
