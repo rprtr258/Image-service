@@ -1,5 +1,5 @@
 @_help:
-    just --list
+    just --list --unsorted
 
 # install development tools
 tools:
@@ -14,8 +14,8 @@ EXAMPLES := `find . -name '*.png' | sed -e 's/\.\/img\/static\///' -e 's/\.png//
 @readme:
     mustpl -d '{"usage": "{{USAGE}}", "examples": "{{EXAMPLES}}"}' img/README.md.tpl > README.md
 
-IMGS := img/static
-FIMGS := go run cmd/fimgs/main.go -i {{IMGS}}/orig.png
+IMGS := "img/static"
+FIMGS := "go run cmd/fimgs/main.go -i "+IMGS/"orig.png"
 # update example imgs from orig.png
 imgs:
     mv $({{FIMGS}} shader -s shader_examples/rgb_coloring.glsl) {{IMGS}}/shader_rgb.png
