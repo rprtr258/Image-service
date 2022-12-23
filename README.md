@@ -6,7 +6,7 @@ go install github.com/rprtr258/fimgs/cmd/fimgs@latest
 ```
 
 ## Usage
-```
+```php
 NAME:
    fimgs - Applies filter to image
 
@@ -14,15 +14,15 @@ USAGE:
    Applies filter to image and saves new image
 
 COMMANDS:
-   sharpen          Sharpen filter
-   edgeenhance      Edgeenhance filter
-   edgedetect2      Edgedetect2 filter
+   blur             Blur filter
    weakblur         Weakblur filter
+   sharpen          Sharpen filter
+   edgedetect1      Edgedetect1 filter
+   edgedetect2      Edgedetect2 filter
    emboss           Emboss filter
+   edgeenhance      Edgeenhance filter
    horizontallines  Horizontallines filter
    verticallines    Verticallines filter
-   blur             Blur filter
-   edgedetect1      Edgedetect1 filter
    cluster          Cluster colors
    quadtree         Quad tree filter
    shader           Shader filter
