@@ -1,22 +1,10 @@
 @_help:
     just --list --unsorted
 
-# install development tools
-@_install-mustpl:
-    #!/bin/sh
-    if command -v mustpl > /dev/null; then
-        exit 0
-    fi
-    curl -SsL -o ./mustpl https://github.com/tarampampam/mustpl/releases/latest/download/mustpl-linux-amd64
-    chmod +x ./mustpl
-    sudo install -g root -o root -t /usr/local/bin -v ./mustpl
-    rm ./mustpl
-
-USAGE := `go run cmd/fimgs/main.go --help`
-EXAMPLES := `find . -name '*.png' | sed -e 's/\.\/img\/static\///' -e 's/\.png//' | awk 'NR%3==1{printf"%s",$1}NR%3==2{printf" %s ",$1}NR%3==0' | awk '{printf"|![](img/static/%s.png)|![](img/static/%s.png)|![](img/static/%s.png)|\n|%s|%s|%s|\n",$1,$2,$3,$1,$2,$3}'`
 # compile readme file
-@readme: _install-mustpl
-    mustpl -d '{"usage": "{{USAGE}}", "examples": "{{EXAMPLES}}"}' img/README.md.tpl > README.md
+@readme $USAGE = `go run cmd/fimgs/main.go --help` $EXAMPLES = `find . -name '*.png'`:
+    go install github.com/hairyhenderson/gomplate/v3/cmd/gomplate@latest
+    cat ./img/README.md.tpl | gomplate > README.md
 
 IMGS := "img/static"
 FIMGS := "go run cmd/fimgs/main.go -i "+IMGS/"orig.png"

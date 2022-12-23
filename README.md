@@ -15,14 +15,14 @@ USAGE:
 
 COMMANDS:
    blur             Blur filter
+   emboss           Emboss filter
+   edgeenhance      Edgeenhance filter
+   edgedetect2      Edgedetect2 filter
+   horizontallines  Horizontallines filter
+   verticallines    Verticallines filter
    weakblur         Weakblur filter
    sharpen          Sharpen filter
    edgedetect1      Edgedetect1 filter
-   edgedetect2      Edgedetect2 filter
-   emboss           Emboss filter
-   edgeenhance      Edgeenhance filter
-   horizontallines  Horizontallines filter
-   verticallines    Verticallines filter
    cluster          Cluster colors
    quadtree         Quad tree filter
    shader           Shader filter
@@ -42,15 +42,16 @@ GLOBAL OPTIONS:
 ## Examples
 ||||
 |-|-|-|
-|![](img/static/shader_rgb.png)|![](img/static/zcurve.png)|![](img/static/verticallines.png)|
+|![](./img/static/shader_rgb.png)|![](./img/static/zcurve.png)|![](./img/static/verticallines.png)|
 |shader_rgb|zcurve|verticallines|
-|![](img/static/sharpen.png)|![](img/static/blur.png)|![](img/static/quadtree.png)|
+|![](./img/static/sharpen.png)|![](./img/static/blur.png)|![](./img/static/quadtree.png)|
 |sharpen|blur|quadtree|
-|![](img/static/weakblur.png)|![](img/static/median.png)|![](img/static/hilbertdarken.png)|
+|![](./img/static/weakblur.png)|![](./img/static/median.png)|![](./img/static/hilbertdarken.png)|
 |weakblur|median|hilbertdarken|
-|![](img/static/emboss.png)|![](img/static/horizontallines.png)|![](img/static/edgedetect2.png)|
+|![](./img/static/emboss.png)|![](./img/static/horizontallines.png)|![](./img/static/edgedetect2.png)|
 |emboss|horizontallines|edgedetect2|
-|![](img/static/edgeenhance.png)|![](img/static/edgedetect1.png)|![](img/static/orig.png)|
+|![](./img/static/edgeenhance.png)|![](./img/static/edgedetect1.png)|![](./img/static/orig.png)|
 |edgeenhance|edgedetect1|orig|
-|![](img/static/hilbert.png)|![](img/static/cluster.png)|![](img/static/.png)|
+|![](./img/static/hilbert.png)|![](./img/static/cluster.png)|![]()|
 |hilbert|cluster||
+
