@@ -1,10 +1,8 @@
 # fimgs - image filters tool
-
 ## Install
 ```bash
 go install github.com/rprtr258/fimgs/cmd/fimgs@latest
 ```
-
 ## Usage
 ```php
 NAME:
@@ -14,15 +12,15 @@ USAGE:
    Applies filter to image and saves new image
 
 COMMANDS:
-   blur             Blur filter
+   weakblur         Weakblur filter
    emboss           Emboss filter
    edgeenhance      Edgeenhance filter
-   edgedetect2      Edgedetect2 filter
    horizontallines  Horizontallines filter
-   verticallines    Verticallines filter
-   weakblur         Weakblur filter
+   blur             Blur filter
    sharpen          Sharpen filter
    edgedetect1      Edgedetect1 filter
+   edgedetect2      Edgedetect2 filter
+   verticallines    Verticallines filter
    cluster          Cluster colors
    quadtree         Quad tree filter
    shader           Shader filter
@@ -33,25 +31,22 @@ COMMANDS:
    help, h          Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --help, -h               show help (default: false)
    --image value, -i value  input image filename
-   
+   --help, -h               show help
 
 ```
-
 ## Examples
 ||||
 |-|-|-|
-|![](./img/static/shader_rgb.png)|![](./img/static/zcurve.png)|![](./img/static/verticallines.png)|
-|shader_rgb|zcurve|verticallines|
-|![](./img/static/sharpen.png)|![](./img/static/blur.png)|![](./img/static/quadtree.png)|
-|sharpen|blur|quadtree|
-|![](./img/static/weakblur.png)|![](./img/static/median.png)|![](./img/static/hilbertdarken.png)|
-|weakblur|median|hilbertdarken|
-|![](./img/static/emboss.png)|![](./img/static/horizontallines.png)|![](./img/static/edgedetect2.png)|
-|emboss|horizontallines|edgedetect2|
-|![](./img/static/edgeenhance.png)|![](./img/static/edgedetect1.png)|![](./img/static/orig.png)|
-|edgeenhance|edgedetect1|orig|
-|![](./img/static/hilbert.png)|![](./img/static/cluster.png)|![]()|
-|hilbert|cluster||
-
+|![](./img/static/blur.png)|![](./img/static/cluster.png)|![](./img/static/edgedetect1.png)|
+|blur|cluster|edgedetect1|
+|![](./img/static/edgedetect2.png)|![](./img/static/edgeenhance.png)|![](./img/static/emboss.png)|
+|edgedetect2|edgeenhance|emboss|
+|![](./img/static/hilbert.png)|![](./img/static/hilbertdarken.png)|![](./img/static/horizontallines.png)|
+|hilbert|hilbertdarken|horizontallines|
+|![](./img/static/median.png)|![](./img/static/orig.png)|![](./img/static/quadtree.png)|
+|median|orig|quadtree|
+|![](./img/static/shader_rgb.png)|![](./img/static/sharpen.png)|![](./img/static/verticallines.png)|
+|shader_rgb|sharpen|verticallines|
+|![](./img/static/weakblur.png)|![](./img/static/zcurve.png)|
+|weakblur|zcurve|
