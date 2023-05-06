@@ -14,7 +14,7 @@ import (
 )
 
 func makeResultFilename(filename string) string {
-	nowString := time.Now().Format("2006-01-02-03-04-05")
+	nowString := time.Now().Format(time.RFC3339Nano)
 	return fmt.Sprintf("%s.fimgs.%s.png", filename, nowString)
 }
 

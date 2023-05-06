@@ -11,6 +11,7 @@ import (
 
 	"github.com/rprtr258/mk"
 	md "github.com/rprtr258/mk/contrib/markdown"
+	"github.com/sourcegraph/conc"
 	"github.com/urfave/cli/v2"
 )
 
@@ -26,6 +27,7 @@ func main() {
 					imgsDir := "img/static"
 					fimgsCmd := mk.ShellAlias("go", "run", "cmd/fimgs/main.go", "-i", filepath.Join(imgsDir, "orig.png"))
 
+					wg := conc.NewWaitGroup()
 					for destination, args := range map[string][]string{
 						"shader_rgb":      {"shader", "-s", "shader_examples/rgb_coloring.glsl"},
 						"zcurve":          {"zcurve"},
@@ -44,9 +46,14 @@ func main() {
 						"edgedetect1":     {"edgedetect1"},
 						"cluster":         {"cluster", "-n", "7"},
 					} {
-						imageFilename, _ := mk.Must2(fimgsCmd(args...))
-						mk.Must0(os.Rename(strings.TrimSpace(imageFilename), filepath.Join(imgsDir, destination+".png")))
+						destination := destination
+						args := args
+						wg.Go(func() {
+							imageFilename, _ := mk.Must2(fimgsCmd(args...))
+							mk.Must0(os.Rename(strings.TrimSpace(imageFilename), filepath.Join(imgsDir, destination+".png")))
+						})
 					}
+					wg.Wait()
 
 					return nil
 				},
