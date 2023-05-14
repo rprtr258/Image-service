@@ -2,14 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/rprtr258/log"
 	"github.com/rprtr258/mk"
+	"github.com/rprtr258/mk/cache"
 	md "github.com/rprtr258/mk/contrib/markdown"
 	"github.com/sourcegraph/conc"
 	"github.com/urfave/cli/v2"
@@ -23,9 +25,17 @@ func main() {
 			{
 				Name:  "imgs",
 				Usage: "update example imgs from orig.png",
-				Action: func(*cli.Context) error {
+				Action: func(ctx *cli.Context) error {
 					imgsDir := "img/static"
-					fimgsCmd := mk.ShellAlias("go", "run", "cmd/fimgs/main.go", "-i", filepath.Join(imgsDir, "orig.png"))
+					origFilename := filepath.Join(imgsDir, "orig.png")
+					fimgsCmd := mk.ExecAliasContext("go", "run", "cmd/fimgs/main.go", "-i", origFilename)
+
+					cch := cache.LoadFromFile[string, string](".cache.json")
+
+					origHash, err := cache.HashFile(origFilename)
+					if err != nil {
+						log.Warnf("can't get orig.png file hash", log.F{"err": err.Error()})
+					}
 
 					wg := conc.NewWaitGroup()
 					for destination, args := range map[string][]string{
@@ -46,14 +56,20 @@ func main() {
 						"edgedetect1":     {"edgedetect1"},
 						"cluster":         {"cluster", "-n", "7"},
 					} {
+						if !cache.CompareAndSwap(cch, args[0], origHash) {
+							continue
+						}
+
 						destination := destination
 						args := args
 						wg.Go(func() {
-							imageFilename, _ := mk.Must2(fimgsCmd(args...))
+							imageFilename, _ := mk.Must2(fimgsCmd(ctx.Context, args...))
 							mk.Must0(os.Rename(strings.TrimSpace(imageFilename), filepath.Join(imgsDir, destination+".png")))
 						})
 					}
 					wg.Wait()
+
+					cache.SaveToFile(".cache.json", cch)
 
 					return nil
 				},
@@ -69,7 +85,7 @@ func main() {
 					md.Code(b, "bash", "go install github.com/rprtr258/fimgs/cmd/fimgs@latest")
 
 					md.H2(b, "Usage")
-					usage, _ := mk.Must2(mk.ShellCmd("go", "run", "cmd/fimgs/main.go", "--help"))
+					usage, _ := mk.Must2(mk.ExecContext(context.Background(), "go", "run", "cmd/fimgs/main.go", "--help"))
 					md.Code(b, "php", usage)
 
 					examples, err := fs.Glob(os.DirFS("img/static"), "*.png")
