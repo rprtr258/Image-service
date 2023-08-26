@@ -28,7 +28,7 @@ func main() {
 		Usage: "Cluster colors",
 		UsageText: `Cluster colors using KMeans algorithm.
 Example:
-	fimgs cluster -n 4 girl.png`,
+	fimgs cluster -i girl.png -n 4`,
 		Flags: []cli.Flag{&cli.IntFlag{
 			Name:        "nclusters",
 			Usage:       "number of clusters, must be greater than 1",
@@ -49,7 +49,7 @@ Example:
 		Usage: "Quad tree filter",
 		UsageText: `Apply quad tree like filter.
 Example:
-	fimgs quadtree girl.png`,
+	fimgs -i girl.png quadtree`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:        "threshold",

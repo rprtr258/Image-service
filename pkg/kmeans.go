@@ -8,13 +8,8 @@ import (
 	"math/rand"
 )
 
-func makeColorArray(len int) [][]int64 {
-	data := make([]int64, len*3)
-	res := make([][]int64, len)
-	for i := 0; i < len; i++ {
-		res[i] = data[i*3 : i*3+3]
-	}
-	return res
+func makeColorArray(len int) [][3]int64 {
+	return make([][3]int64, len)
 }
 
 func abs64(x int64) int64 {
@@ -22,13 +17,13 @@ func abs64(x int64) int64 {
 	return (x + mask) ^ mask
 }
 
-func minkowskiiDist(a, b []int64) int64 {
+func minkowskiiDist(a, b [3]int64) int64 {
 	return abs64(a[0]-b[0]) + abs64(a[1]-b[1]) + abs64(a[2]-b[2])
 }
 
-func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
+func initClusterCenters(pixelColors [][3]int64, clustersCount int) [][3]int64 {
 	clustersCenters := makeColorArray(clustersCount)
-	copy(clustersCenters[clustersCount-1], pixelColors[rand.Intn(len(pixelColors))])
+	clustersCenters[clustersCount-1] = pixelColors[rand.Intn(len(pixelColors))]
 	minClusterDistance := make([]int64, len(pixelColors))
 	minClusterDistanceSum := int64(0)
 	for i, pixelColor := range pixelColors {
@@ -40,7 +35,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 		for i, pixelColor := range pixelColors {
 			x -= minClusterDistance[i]
 			if x < 0 {
-				copy(clustersCenters[k], pixelColor)
+				clustersCenters[k] = pixelColor
 				break
 			}
 		}
@@ -58,7 +53,7 @@ func initClusterCenters(pixelColors [][]int64, clustersCount int) [][]int64 {
 	return clustersCenters
 }
 
-func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
+func kmeansIters(clustersCenters, pixelColors [][3]int64, clustersCount int) {
 	batchMaxSize := int(math.Sqrt(float64(len(pixelColors))))
 	sumAndCount := make([]int64, clustersCount*4) // count and sum of Rs, Gs, Bs
 	for epoch := 0; epoch < 300; epoch++ {
@@ -89,11 +84,13 @@ func kmeansIters(clustersCenters, pixelColors [][]int64, clustersCount int) {
 			if count == 0 {
 				continue
 			}
-			sumAndCount[i*4+1] /= count
-			sumAndCount[i*4+2] /= count
-			sumAndCount[i*4+3] /= count
-			movement += minkowskiiDist(clustersCenters[i], sumAndCount[i*4+1:i*4+4])
-			copy(clustersCenters[i], sumAndCount[i*4+1:i*4+4])
+			v := [3]int64{
+				sumAndCount[i*4+1] / count,
+				sumAndCount[i*4+2] / count,
+				sumAndCount[i*4+3] / count,
+			}
+			movement += minkowskiiDist(clustersCenters[i], v)
+			clustersCenters[i] = v
 		}
 		if movement < 100 {
 			break
@@ -108,9 +105,7 @@ func ApplyKMeans(im image.Image, clustersCount int) image.RGBA {
 		for i := 0; i < im.Bounds().Dx(); i++ {
 			k := i + j*imageWidth
 			r, g, b, _ := im.At(i, j).RGBA()
-			pixelColors[k][0] = int64(r)
-			pixelColors[k][1] = int64(g)
-			pixelColors[k][2] = int64(b)
+			pixelColors[k] = [3]int64{int64(r), int64(g), int64(b)}
 		}
 	}
 	rand.Seed(0)
