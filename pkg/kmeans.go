@@ -43,8 +43,7 @@ func initClusterCenters(pixelColors [][3]int64, clustersCount int) [][3]int64 {
 			break
 		}
 		for i, pixelColor := range pixelColors {
-			newDistance := minkowskiiDist(pixelColor, clustersCenters[0])
-			if newDistance < minClusterDistance[i] {
+			if newDistance := minkowskiiDist(pixelColor, clustersCenters[0]); newDistance < minClusterDistance[i] {
 				minClusterDistanceSum += newDistance - minClusterDistance[i]
 				minClusterDistance[i] = newDistance
 			}
@@ -137,18 +136,21 @@ func ApplyKMeans(im image.Image, clustersCount int) image.RGBA {
 }
 
 // TODO: filter init is also validation?
-func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) (err error) {
+func ApplyKMeansFilter(sourceImageFilename string, resultImageFilename string, clustersCount int) error {
 	if clustersCount < 2 {
 		return fmt.Errorf("'n' must be at least 2, you gave n=%d", clustersCount)
 	}
+
 	im, err := LoadImageFile(sourceImageFilename)
 	if err != nil {
 		return fmt.Errorf("error occured while loading image: %q", err)
 	}
+
 	filtered_im := ApplyKMeans(im, clustersCount)
-	err = saveImage(filtered_im, resultImageFilename)
-	if err != nil {
-		return
+
+	if err := saveImage(filtered_im, resultImageFilename); err != nil {
+		return err
 	}
-	return
+
+	return nil
 }
