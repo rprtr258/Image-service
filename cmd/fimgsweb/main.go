@@ -52,7 +52,7 @@ func downloadImage(url string) (_imageFilename string, _imageId string, _err err
 	}
 	defer f.Close()
 
-	if _, err = io.Copy(f, r.Body); err != nil {
+	if _, err := io.Copy(f, r.Body); err != nil {
 		return "", "", err
 	}
 
@@ -61,17 +61,17 @@ func downloadImage(url string) (_imageFilename string, _imageId string, _err err
 
 // TODO: offload work to workers
 
-type FilterPageData struct {
-	FilterName string
-	Message    string
-	ImageFile  *string
-}
-
 func renderTemplateOrPanic(rootTemplate *template.Template, w io.Writer, name string, data interface{}) {
 	if err := rootTemplate.ExecuteTemplate(w, name, data); err != nil {
 		// TODO: return and handle error
 		log.Fatalf("Error rendering template: name=%q data=%v err=%q", name, data, err)
 	}
+}
+
+type FilterPageData struct {
+	FilterName string
+	Message    string
+	ImageFile  *string
 }
 
 func renderFilterPage(pages_templates *template.Template, w http.ResponseWriter, templateName, filterName, message string) {
@@ -82,50 +82,50 @@ func renderFilterPage(pages_templates *template.Template, w http.ResponseWriter,
 	})
 }
 
-type Filter interface {
-	filterName() string
-	templateName() string
-	pages_templates() *template.Template
-	validate(url.Values) error
-	process(sourceImageFilename, resultImageFilename string, form url.Values) error
+func noValidate(url.Values) error { return nil }
+
+type Filter struct {
+	filterName      string
+	templateName    string
+	pages_templates *template.Template
+
+	validate func(url.Values) error
+	process  func(sourceImageFilename, resultImageFilename string, form url.Values) error
 }
 
 func filterHandler(f Filter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filterName := f.filterName()
-		templateName := f.templateName()
-
 		if r.Method != "POST" {
-			renderFilterPage(f.pages_templates(), w, templateName, filterName, "")
+			renderFilterPage(f.pages_templates, w, f.templateName, f.filterName, "")
 			return
 		}
 
 		r.ParseForm()
 		if !r.PostForm.Has("url") {
-			renderFilterPage(f.pages_templates(), w, templateName, filterName, "'url' is not provided")
+			renderFilterPage(f.pages_templates, w, f.templateName, f.filterName, "'url' is not provided")
 			return
 		}
 		imageUrl := r.PostFormValue("url")
 		if imageUrl == "" {
-			renderFilterPage(f.pages_templates(), w, templateName, filterName, "'url' is not provided")
+			renderFilterPage(f.pages_templates, w, f.templateName, f.filterName, "'url' is not provided")
 			return
 		}
 
 		if err := f.validate(r.PostForm); err != nil {
-			renderFilterPage(f.pages_templates(), w, templateName, filterName, fmt.Sprintf("Error in request params:\n%q", err))
+			renderFilterPage(f.pages_templates, w, f.templateName, f.filterName, fmt.Sprintf("Error in request params:\n%q", err))
 			return
 		}
 
 		sourceImageFilename, imageId, err := downloadImage(imageUrl)
 		if err != nil {
-			renderFilterPage(f.pages_templates(), w, templateName, filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
+			renderFilterPage(f.pages_templates, w, f.templateName, f.filterName, fmt.Sprintf("Error occured during loading image:\n%q", err))
 			return
 		}
 
 		resultImageFile := filepath.Join("img", fmt.Sprintf("img/%s.res.png", imageId))
 
 		ff := FilterPageData{
-			FilterName: filterName,
+			FilterName: f.filterName,
 		}
 		if err := f.process(sourceImageFilename, resultImageFile, r.PostForm); err != nil {
 			ff.Message = fmt.Sprintf("Error occured:\n%q", err)
@@ -134,98 +134,8 @@ func filterHandler(f Filter) http.HandlerFunc {
 			ff.ImageFile = &resultImageFile
 			// TODO: add timing
 		}
-		renderTemplateOrPanic(f.pages_templates(), w, templateName, ff)
+		renderTemplateOrPanic(f.pages_templates, w, f.templateName, ff)
 	}
-}
-
-type BasicFilter struct {
-	_filterName      string
-	_templateName    string
-	_pages_templates *template.Template
-}
-
-func (f *BasicFilter) filterName() string {
-	return f._filterName
-}
-
-func (f *BasicFilter) templateName() string {
-	return f._templateName
-}
-
-func (f *BasicFilter) pages_templates() *template.Template {
-	return f._pages_templates
-}
-
-func (f *BasicFilter) validate(url.Values) error {
-	return nil
-}
-
-type convolutionFilter struct {
-	BasicFilter
-	kernel [][]int
-}
-
-func (f *convolutionFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-	return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, f.kernel)
-}
-
-type KMeansFilter struct {
-	BasicFilter
-}
-
-// TODO: validation is done two times, how to reduce?
-func (f KMeansFilter) validate(form url.Values) error {
-	if !form.Has("n") {
-		return fmt.Errorf("'n' (number of clusters) is not provided")
-	}
-	n_clusters, err := strconv.Atoi(form.Get("n"))
-	switch {
-	case err != nil:
-		return fmt.Errorf("error parsing parameter 'n':\n%q", err)
-	case n_clusters < 2:
-		return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
-	}
-	return nil
-}
-
-func (f KMeansFilter) process(sourceImageFilename, resultImageFilename string, form url.Values) error {
-	n_clusters, _ := strconv.Atoi(form.Get("n"))
-	return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters)
-}
-
-type HilbertFilter struct {
-	BasicFilter
-}
-
-func (f *HilbertFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-	return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
-}
-
-type HilbertDarkenFilter struct {
-	BasicFilter
-}
-
-func (f *HilbertDarkenFilter) process(sourceImageFilename, resultImageFilename string, _ url.Values) error {
-	return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
-}
-
-type ShaderFilter struct {
-	BasicFilter
-}
-
-// TODO: validation is done 2 times also
-func (f *ShaderFilter) validate(form url.Values) error {
-	if !form.Has("fragment_shader_source") {
-		return fmt.Errorf("'fragment_shader_source' is not provided")
-	}
-	//fragment_shader_source := r.PostFormValue("fragment_shader_source")
-	// TODO: compile shader and return any errors
-	return nil
-}
-
-func (f *ShaderFilter) process(sourceImageFilename, resultImageFilename string, form url.Values) error {
-	fragment_shader_source := form.Get("fragment_shader_source")
-	return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source)
 }
 
 // TODO: load assets https://github.com/go-gl/example/blob/d71b0d9f823d97c3b5ac2a79fdcdb56ca1677eba/gl41core-cube/cube.go#L322
@@ -311,17 +221,67 @@ func main() {
 		"horizontallines": {"Horizontal lines", fimgs.HORIZONTAL_LINES_KERNEL},
 		"verticallines":   {"Vertical lines", fimgs.VERTICAL_LINES_KERNEL},
 	} {
-		mux.HandleFunc("/"+route, filterHandler(&convolutionFilter{
-			BasicFilter{hndlr.name, "filter.html", pages_templates},
-			hndlr.kernel,
+		mux.HandleFunc("/"+route, filterHandler(Filter{
+			hndlr.name, "filter.html", pages_templates,
+			noValidate,
+			func(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+				return fimgs.ApplyConvolutionFilter(sourceImageFilename, resultImageFilename, hndlr.kernel)
+			},
 		}))
 	}
 	// TODO: draw lokot'
 	// TODO: fix double POST???
-	mux.HandleFunc("/cluster", filterHandler(&KMeansFilter{BasicFilter{"Cluster", "cluster.html", pages_templates}}))
-	mux.HandleFunc("/hilbert", filterHandler(&HilbertFilter{BasicFilter{"Hilbert curve", "filter.html", pages_templates}}))
-	mux.HandleFunc("/hilbertdarken", filterHandler(&HilbertDarkenFilter{BasicFilter{"Hilbert curve darken", "filter.html", pages_templates}}))
-	mux.HandleFunc("/shader", filterHandler(&ShaderFilter{BasicFilter{"Shader", "shader.html", pages_templates}}))
+	mux.HandleFunc("/cluster", filterHandler(Filter{
+		"Cluster", "cluster.html", pages_templates,
+		// TODO: validation is done two times, how to reduce?
+		func(form url.Values) error {
+			if !form.Has("n") {
+				return fmt.Errorf("'n' (number of clusters) is not provided")
+			}
+			n_clusters, err := strconv.Atoi(form.Get("n"))
+			switch {
+			case err != nil:
+				return fmt.Errorf("error parsing parameter 'n':\n%q", err)
+			case n_clusters < 2:
+				return fmt.Errorf("'n' must be at least 2, you gave n=%d", n_clusters)
+			}
+			return nil
+		},
+		func(sourceImageFilename, resultImageFilename string, form url.Values) error {
+			n_clusters, _ := strconv.Atoi(form.Get("n"))
+			return fimgs.ApplyKMeansFilter(sourceImageFilename, resultImageFilename, n_clusters)
+		},
+	}))
+	mux.HandleFunc("/hilbert", filterHandler(Filter{
+		"Hilbert curve", "filter.html", pages_templates,
+		noValidate,
+		func(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+			return fimgs.HilbertCurve(sourceImageFilename, resultImageFilename)
+		},
+	}))
+	mux.HandleFunc("/hilbertdarken", filterHandler(Filter{
+		"Hilbert curve darken", "filter.html", pages_templates,
+		noValidate,
+		func(sourceImageFilename, resultImageFilename string, _ url.Values) error {
+			return fimgs.HilbertDarken(sourceImageFilename, resultImageFilename)
+		},
+	}))
+	mux.HandleFunc("/shader", filterHandler(Filter{
+		"Shader", "shader.html", pages_templates,
+		// TODO: validation is done 2 times also
+		func(form url.Values) error {
+			if !form.Has("fragment_shader_source") {
+				return fmt.Errorf("'fragment_shader_source' is not provided")
+			}
+			//fragment_shader_source := r.PostFormValue("fragment_shader_source")
+			// TODO: compile shader and return any errors
+			return nil
+		},
+		func(sourceImageFilename, resultImageFilename string, form url.Values) error {
+			fragment_shader_source := form.Get("fragment_shader_source")
+			return fimgs.ShaderFilter(sourceImageFilename, resultImageFilename, fragment_shader_source)
+		},
+	}))
 
 	s := &http.Server{
 		Addr: ":8080",
